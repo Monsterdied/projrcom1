@@ -29,6 +29,11 @@ typedef struct
 #define ADRESS_R 0x01 // Commands by Receiver or replies from Transmiter
 #define UA_CONTROL 0x07 
 #define SET_CONTROL 0x03
+#define DISC_CONTROL 0x0B //disconnect signal
+#define RR_0 0x05 //receiver ready for frame 0
+#define RR_1 0x85 //receiver ready for frame 1
+#define REJ_0 0x01 //reject frame 0
+#define REJ_1 0x81 //reject frame 1
 #define ESC_1 0x7D
 #define ESC_2 0x5E
 #define ESC_3 0x5D

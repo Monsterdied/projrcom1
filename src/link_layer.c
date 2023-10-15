@@ -31,6 +31,15 @@ BCC_OK,
 STOP_RCV
 }States_Open_t;
 
+typedef enum{
+Not_Sent,
+Sent,
+Failed,
+Received_Ack
+}State_write_t;
+
+int nRetransmissions = 1;
+int nTimeout = 3;
 int fd = 0;
 int infoframe = 0;
 ////////////////////////////////////////////////
@@ -95,6 +104,8 @@ int llopen(LinkLayer connectionParameters){
 
     printf("New termios structure set\n");
     States_Open_t state = Start_RCV;
+    nRetransmissions = connectionParameters.nRetransmissions;
+    nTimeout = connectionParameters.timeout;
     if(connectionParameters.role == LlTx){
         unsigned char buf[5];
         memset(&buf,0,sizeof(5));
@@ -158,6 +169,7 @@ int llopen(LinkLayer connectionParameters){
                     if(buf_read[0]==FLAG){
                         printf("fixe");
                         alarm(0);
+                        alarmEnabled = FALSE;
                         state = STOP_RCV;
                     }else{
                         state = Start_RCV;
@@ -246,6 +258,82 @@ int llopen(LinkLayer connectionParameters){
 
 }
 
+State_write_t read_while_writing(){
+    State_write_t result = Failed;
+    States_Open_t state = Start_RCV;
+    unsigned char control = 0;
+    while(alarmEnabled == TRUE && state != STOP_RCV){
+        unsigned char  buf_read[1];
+        buf_read[0] = 0;
+        read(fd, buf_read, 1);
+        switch (state){
+            case Start_RCV:
+                if(buf_read[0]==FLAG){
+                    state = Flag_RCV;
+                }
+                break;
+            case Flag_RCV:
+                if(buf_read[0]==ADRESS_T){
+                    state = A_RCV;
+                }else if(buf_read[0]==FLAG){
+                    state = Flag_RCV;
+                }else{
+                    state = Start_RCV;
+                }
+                break;   
+            case A_RCV:
+                control = buf_read[0];
+                if(buf_read[0]==RR_0 && infoframe == 0){
+                    state = C_RCV;
+                    result = Received_Ack;
+
+                }else if(buf_read[0]==RR_1 && infoframe == 1){
+                    state = C_RCV;
+                    result = Received_Ack;
+
+                }else if(buf_read[0]==REJ_0 && infoframe == 0){
+                    state = C_RCV;
+                    result = Failed;
+
+                }else if(buf_read[0]==REJ_1 && infoframe == 1){
+                    state = C_RCV;
+                    result = Failed;
+
+                }else if(buf_read[0]==FLAG){
+                    state = Flag_RCV;
+                }else{
+                    state = Start_RCV;
+                }
+                break;
+            case C_RCV:
+                if(buf_read[0]==(ADRESS_T^control)){
+                    state = BCC_OK;
+                }else if(buf_read[0]==FLAG){
+                    state = Flag_RCV;
+                    result = Failed;
+                }else{
+                    state = Start_RCV;
+                    result = Failed;
+                }
+                break;
+            case BCC_OK:
+                if(buf_read[0]==FLAG){
+                    alarm(0);
+                    alarmEnabled = FALSE;
+                    state = STOP_RCV;
+                }else{
+                    state = Start_RCV;
+                    result = Failed;
+                }
+                break;
+            default:
+                break;
+        }
+
+    }
+    return result;
+}
+
 ////////////////////////////////////////////////
 // LLWRITE
 ////////////////////////////////////////////////
@@ -253,7 +341,7 @@ int llwrite(const unsigned char *buf, int bufSize)
 {
     // We add 6 to the frameSize cause of F(x2) , A , C , BCC1 , BCC2 fields
     int frameSize = bufSize + 6;
-
+    (void)signal(SIGALRM, alarmHandler);
     //We declare the frame and start filling it
     unsigned char *frame = malloc(frameSize * sizeof(unsigned char));
 
@@ -266,6 +354,7 @@ int llwrite(const unsigned char *buf, int bufSize)
 
     for(int i=1; i < bufSize; i++) BCC2 ^= buf[i];
 
+    //stuffing
     int counter_escapes = 4;
     for(int i=0; i < bufSize ; i++){
         if(buf[i]==FLAG){
@@ -290,7 +379,20 @@ int llwrite(const unsigned char *buf, int bufSize)
     frame[counter_escapes++] = FLAG;
 
     //2ºPart of the function
+    State_write_t state = Not_Sent;
+    int tries = 0;
+    while( tries < nRetransmissions && state != Received_Ack){
+        //enable alarm
+        if(alarmEnabled == FALSE){
+            tries++;
+            write(fd, frame, frameSize);
+            alarm(nRetransmissions);
+            alarmEnabled = TRUE;
+        }else{
+            
+        }
 
+    }
 
 
     return frameSize;
