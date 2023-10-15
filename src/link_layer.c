@@ -32,6 +32,7 @@ STOP_RCV
 }States_Open_t;
 
 int fd = 0;
+int infoframe = 0;
 ////////////////////////////////////////////////
 // LLOPEN
 ////////////////////////////////////////////////
@@ -250,9 +251,49 @@ int llopen(LinkLayer connectionParameters){
 ////////////////////////////////////////////////
 int llwrite(const unsigned char *buf, int bufSize)
 {
-    // TODO
+    // We add 6 to the frameSize cause of F(x2) , A , C , BCC1 , BCC2 fields
+    int frameSize = bufSize + 6;
 
-    return 0;
+    //We declare the frame and start filling it
+    unsigned char *frame = malloc(frameSize * sizeof(unsigned char));
+
+    frame[0] = FLAG;
+    frame[1] = ADRESS_R;
+    frame[2] = S(infoframe);
+    frame[3] = frame[1]^frame[2];
+    memcpy(frame+4,buf,bufSize);
+    unsigned char BCC2 = buf[0];
+
+    for(int i=1; i < bufSize; i++) BCC2 ^= buf[i];
+
+    int counter_escapes = 4;
+    for(int i=0; i < bufSize ; i++){
+        if(buf[i]==FLAG){
+            counter_escapes++;
+            frame = realloc(frame,++frameSize);
+            frame[counter_escapes] = ESC_1;
+            frame[counter_escapes++] = ESC_2;
+        }
+        else if(buf[i]==ESC_1){
+            counter_escapes++;
+            frame = realloc(frame,++frameSize);
+            frame[counter_escapes] = ESC_1;
+            frame[counter_escapes++] = ESC_3;
+        }
+        else{
+            frame[counter_escapes++] = buf[i];
+        }
+
+    }
+
+    frame[counter_escapes++] = BCC2;
+    frame[counter_escapes++] = FLAG;
+
+    //2ºPart of the function
+
+
+
+    return frameSize;
 }
 
 ////////////////////////////////////////////////

@@ -29,10 +29,15 @@ typedef struct
 #define ADRESS_R 0x01 // Commands by Receiver or replies from Transmiter
 #define UA_CONTROL 0x07 
 #define SET_CONTROL 0x03
+#define ESC_1 0x7D
+#define ESC_2 0x5E
+#define ESC_3 0x5D
 
 // MISC
 #define FALSE 0
 #define TRUE 1
+
+#define S(Ns) (Ns << 6);
 
 // Open a connection using the "port" parameters defined in struct linkLayer.
 // Return "1" on success or "-1" on error.
