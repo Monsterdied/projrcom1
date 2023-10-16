@@ -494,7 +494,7 @@ int sendSupervision(unsigned char A, unsigned char C)
 int llread(unsigned char *packet)
 {
 
-    State_read_r state = Start_RCV;
+    State_read_r state = Start_RCV_r;
     unsigned char readByte;
     unsigned char cByte;
     int size = 0;
@@ -505,7 +505,7 @@ int llread(unsigned char *packet)
         read(fd, &readByte, 1);
         switch (state)
         {
-        case Start_RCV:
+        case Start_RCV_r:
             if (readByte == FLAG)
             {
                 state = Flag_RCV_r;
@@ -514,25 +514,25 @@ int llread(unsigned char *packet)
         case Flag_RCV:
             if (readByte == ADRESS_T)
             {
-                state = A_RCV;
+                state = A_RCV_r;
             }
             else if (readByte != FLAG)
             {
-                state = Start_RCV;
+                state = Start_RCV_r;
             }
             break;
         case A_RCV:
             if (readByte == S(0) || readByte == S(1) || readByte == DISC_CONTROL)
             {
-                state = C_RCV;
+                state = C_RCV_r;
                 cByte = readByte;
             }
             else if (readByte == FLAG)
             {
-                state = Flag_RCV;
+                state = Flag_RCV_r;
             }
             else
-                state = Start_RCV;
+                state = Start_RCV_r;
             break;
         case C_RCV:
             if (readByte == (ADRESS_T ^ cByte))
@@ -552,7 +552,7 @@ int llread(unsigned char *packet)
             }
             else
                 state = Flag_RCV_r;
-            break;
+            break; 
         case DISC_RCV_r:
             if (readByte == FLAG)
             {
@@ -562,7 +562,7 @@ int llread(unsigned char *packet)
             }
             else
             {
-                state = Start_RCV;
+                state = Start_RCV_r;
             }
             break;
         case READ_DATA_r:
@@ -579,12 +579,14 @@ int llread(unsigned char *packet)
                 for (int i = 1; i < size; i++)
                     testBCC2 ^= packet[i];
 
-                if (testBCC2 == bcc2)
-                {
-                    sendSupervision(ADRESS_R, UA_CONTROL);
-                    state = STOP_RCV;
+                if(testBCC2 == bcc2){
+                    sendSupervision(ADRESS_R,infoframe==0?RR_1:RR_0);
+                    state = STOP_RCV_r;
                     update_infoframe();
                     return size;
+                }
+                else{
+                    sendSupervision(ADRESS_R,infoframe==0?REJ_0:REJ_1);
                 }
             }
             else
@@ -605,15 +607,13 @@ int llread(unsigned char *packet)
                 packet[size] = ESC_1;
                 size++;
             }
-            else if (readByte == FLAG)
-            {
+            else if(readByte == FLAG){
                 state = Flag_RCV_r;
-                sendSupervision(ADRESS_R, infoframe);
+                sendSupervision(ADRESS_R,infoframe==0?REJ_0:REJ_1);
             }
-            else
-            {
+            else{
                 state = Start_RCV_r;
-                sendSupervision(ADRESS_R, infoframe);
+                sendSupervision(ADRESS_R,infoframe==0?REJ_0:REJ_1);
             }
 
             break;

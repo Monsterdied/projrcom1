@@ -26,7 +26,7 @@ Flag_RCV,
 A_RCV,
 C_RCV,
 BCC_OK,
-STOP_RCV
+STOP_RCV 
 }States_Open_t;
 
 typedef enum
