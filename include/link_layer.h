@@ -19,6 +19,26 @@ typedef struct
     int timeout;
 } LinkLayer;
 
+typedef enum{
+Start_RCV,
+Flag_RCV,
+A_RCV,
+C_RCV,
+BCC_OK,
+READ_DATA,
+ESC_CLEAN,
+STOP_RCV
+}States_Open_t;
+
+
+typedef enum{
+Not_Sent,
+Sent,
+Failed,
+Received_Ack
+}State_write_t;
+
+
 // SIZE of maximum acceptable payload.
 // Maximum number of bytes that application layer should send to link layer
 #define MAX_PAYLOAD_SIZE 1000
@@ -42,7 +62,7 @@ typedef struct
 #define FALSE 0
 #define TRUE 1
 
-#define S(Ns) (Ns << 6);
+#define S(Ns) (Ns << 6)
 
 // Open a connection using the "port" parameters defined in struct linkLayer.
 // Return "1" on success or "-1" on error.

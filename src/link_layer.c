@@ -22,21 +22,6 @@ void alarmHandler(int signal)
     printf("terring\n");
 
 }
-typedef enum{
-Start_RCV,
-Flag_RCV,
-A_RCV,
-C_RCV,
-BCC_OK,
-STOP_RCV
-}States_Open_t;
-
-typedef enum{
-Not_Sent,
-Sent,
-Failed,
-Received_Ack
-}State_write_t;
 
 int nRetransmissions = 1;
 int nTimeout = 3;
@@ -320,7 +305,9 @@ int llwrite(const unsigned char *buf, int bufSize)
 {
     // We add 6 to the frameSize cause of F(x2) , A , C , BCC1 , BCC2 fields
     int frameSize = bufSize + 6;
+
     (void)signal(SIGALRM, alarmHandler);
+
     //We declare the frame and start filling it
     unsigned char *frame = malloc(frameSize * sizeof(unsigned char));
 
@@ -333,7 +320,7 @@ int llwrite(const unsigned char *buf, int bufSize)
 
     for(int i=1; i < bufSize; i++) BCC2 ^= buf[i];
 
-    //stuffing
+    //Stuffing
     int counter_escapes = 4;
     for(int i=0; i < bufSize ; i++){
         if(buf[i]==FLAG){
@@ -354,24 +341,31 @@ int llwrite(const unsigned char *buf, int bufSize)
 
     }
 
+
+    //Finish filling the rest of frame
+
     frame[counter_escapes++] = BCC2;
     frame[counter_escapes++] = FLAG;
 
     //2nd Part of the function
+
     State_write_t state = Not_Sent;
+
     int tries = 0;
+
     while( tries < nRetransmissions && state != Received_Ack){
-        //enable alarm
+
+        //Enable alarm
         if(alarmEnabled == FALSE){
             tries++;
             write(fd, frame, frameSize);
             alarm(nTimeout);
             alarmEnabled = TRUE;
         }else{
-            unsigned char control = read_control_frame(ADRESS_T);
+            // unsigned char control = read_control_frame(ADRESS_T);
             
             
-            if(){//WORK IN PROGRESS
+            if(TRUE){//WORK IN PROGRESS
                 alarm(0);
                 alarmEnabled = FALSE;
             }
@@ -387,12 +381,112 @@ int llwrite(const unsigned char *buf, int bufSize)
 ////////////////////////////////////////////////
 // LLREAD
 ////////////////////////////////////////////////
-int llread(unsigned char *packet)
-{
-    // TODO
-    
 
-    return 0;
+int sendSupervision(unsigned char A, unsigned char C){
+    unsigned char frame[5];
+    frame[0] = FLAG;
+    frame[1] = A;
+    frame[2] = C;
+    frame[3] = A^C;
+    frame[4] = FLAG;
+    printf("Going to send SupFrame");
+    return write(fd,frame,5);
+}
+
+int llread(unsigned char *packet){
+
+    States_Open_t state = Start_RCV;
+    unsigned char readByte;
+    unsigned char cByte;
+    int size=0;
+    unsigned char bcc2;
+    unsigned char testBCC2;
+    while(state!=STOP_RCV){
+        read(fd, &readByte, 1);
+        switch(state){
+            case Start_RCV:
+                if(readByte==FLAG){
+                    state = FLAG;
+                }
+                break;
+            case Flag_RCV:
+                if(readByte==ADRESS_T){
+                    state = A_RCV;
+                }
+                else if(readByte!=FLAG){
+                    state = Start_RCV;
+                }
+                break;
+            case A_RCV:
+                if(readByte == S(0) || readByte == S(1)){
+                    state = C_RCV;
+                    cByte = readByte;
+                }
+                else if(readByte == FLAG){
+                    state = Flag_RCV;
+                }
+                else state = Start_RCV;
+                break;
+            case C_RCV:
+                if(readByte == (ADRESS_T^cByte)){
+                    state = READ_DATA;
+                }
+                else if(readByte == FLAG){
+                    state = Flag_RCV;
+                }
+                else state = FLAG;
+            case READ_DATA:
+                if(readByte == ESC_1){
+                    state = ESC_CLEAN;
+                }
+                else if(readByte == FLAG){
+                    bcc2 = packet[size-1];
+                    size--;
+                    packet[size] = '\0';
+                    testBCC2 = packet[0];
+                    for(int i=1;i<size;i++) testBCC2 ^= packet[i];
+
+                    if(testBCC2 == bcc2){
+                        sendSupervision(ADRESS_R, infoframe);
+                        state = STOP_RCV;
+                        return size;
+                    }
+
+                }
+                else{
+                    packet[size] = readByte;
+                    size++;
+                }
+                break;
+            case ESC_CLEAN:
+                state = READ_DATA;
+                if(readByte == ESC_2){
+                    packet[size] = 0x7E;
+                    size++;
+                }
+                else if(readByte == ESC_3){
+                    packet[size] = ESC_1;
+                    size++;
+                }
+                else if(readByte == FLAG){
+                    state = FLAG;
+                    sendSupervision(ADRESS_R,infoframe);
+                }
+                else{
+                    state = Start_RCV;
+                    sendSupervision(ADRESS_R,infoframe);
+                }
+
+                break;
+            
+            case BCC_OK:
+                break;
+            case STOP_RCV:
+                break;
+        }
+    }
+
+    return -1;
 }
 
 ////////////////////////////////////////////////
