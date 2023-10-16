@@ -258,8 +258,7 @@ int llopen(LinkLayer connectionParameters){
 
 }
 
-State_write_t read_while_writing(){
-    State_write_t result = Failed;
+unsigned char read_control_frame(unsigned char Adress){
     States_Open_t state = Start_RCV;
     unsigned char control = 0;
     while(alarmEnabled == TRUE && state != STOP_RCV){
@@ -273,7 +272,7 @@ State_write_t read_while_writing(){
                 }
                 break;
             case Flag_RCV:
-                if(buf_read[0]==ADRESS_T){
+                if(buf_read[0]==Adress){
                     state = A_RCV;
                 }else if(buf_read[0]==FLAG){
                     state = Flag_RCV;
@@ -283,26 +282,10 @@ State_write_t read_while_writing(){
                 break;   
             case A_RCV:
                 control = buf_read[0];
-                if(buf_read[0]==RR_0 && infoframe == 0){
-                    state = C_RCV;
-                    result = Received_Ack;
-
-                }else if(buf_read[0]==RR_1 && infoframe == 1){
-                    state = C_RCV;
-                    result = Received_Ack;
-
-                }else if(buf_read[0]==REJ_0 && infoframe == 0){
-                    state = C_RCV;
-                    result = Failed;
-
-                }else if(buf_read[0]==REJ_1 && infoframe == 1){
-                    state = C_RCV;
-                    result = Failed;
-
-                }else if(buf_read[0]==FLAG){
+                if(buf_read[0]==FLAG){
                     state = Flag_RCV;
                 }else{
-                    state = Start_RCV;
+                    state = C_RCV;
                 }
                 break;
             case C_RCV:
@@ -310,10 +293,8 @@ State_write_t read_while_writing(){
                     state = BCC_OK;
                 }else if(buf_read[0]==FLAG){
                     state = Flag_RCV;
-                    result = Failed;
                 }else{
                     state = Start_RCV;
-                    result = Failed;
                 }
                 break;
             case BCC_OK:
@@ -323,15 +304,13 @@ State_write_t read_while_writing(){
                     state = STOP_RCV;
                 }else{
                     state = Start_RCV;
-                    result = Failed;
                 }
                 break;
             default:
                 break;
         }
-
     }
-    return result;
+    return control;
 }
 
 ////////////////////////////////////////////////
@@ -378,7 +357,7 @@ int llwrite(const unsigned char *buf, int bufSize)
     frame[counter_escapes++] = BCC2;
     frame[counter_escapes++] = FLAG;
 
-    //2ºPart of the function
+    //2nd Part of the function
     State_write_t state = Not_Sent;
     int tries = 0;
     while( tries < nRetransmissions && state != Received_Ack){
@@ -386,10 +365,17 @@ int llwrite(const unsigned char *buf, int bufSize)
         if(alarmEnabled == FALSE){
             tries++;
             write(fd, frame, frameSize);
-            alarm(nRetransmissions);
+            alarm(nTimeout);
             alarmEnabled = TRUE;
         }else{
+            unsigned char control = read_control_frame(ADRESS_T);
             
+            
+            if(){//WORK IN PROGRESS
+                alarm(0);
+                alarmEnabled = FALSE;
+            }
+
         }
 
     }
