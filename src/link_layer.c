@@ -581,7 +581,7 @@ int llread(unsigned char *packet)
 
                 if (testBCC2 == bcc2)
                 {
-                    sendSupervision(ADRESS_R, infoframe);
+                    sendSupervision(ADRESS_R, UA_CONTROL);
                     state = STOP_RCV;
                     update_infoframe();
                     return size;
