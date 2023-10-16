@@ -25,10 +25,18 @@ Flag_RCV,
 A_RCV,
 C_RCV,
 BCC_OK,
-READ_DATA,
-ESC_CLEAN,
 STOP_RCV
 }States_Open_t;
+
+typedef enum{
+    Start_Read,
+    Flag_Read,
+    A_Read,
+    C_Read,
+    Read_Data,
+    ESC_Clean,
+    Stop_Read
+}States_Read_t;
 
 
 typedef enum{
