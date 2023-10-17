@@ -629,7 +629,100 @@ int llread(unsigned char *packet)
 ////////////////////////////////////////////////
 int llclose(int showStatistics)
 {
-    // TODO
 
-    return 1;
+    (void)signal(SIGALRM, alarmHandler);
+
+    int alarmcount = 0;
+    
+    States_Open_t state = Start_RCV;
+
+    while(state!=STOP_RCV && nRetransmissions != alarmcount){
+
+        sendSupervision(ADRESS_R,DISC_CONTROL);
+
+        alarmEnabled = FALSE;
+
+        alarm(nTimeout);
+
+        unsigned char readByte;
+
+        while(state!=STOP_RCV && !alarmEnabled){
+            
+            read(fd,&readByte,1);
+            switch (state)
+            {
+            case Start_RCV:
+                
+                if(readByte==FLAG){
+                    state=Flag_RCV;
+                }
+
+                break;
+
+            case Flag_RCV:
+
+                if(readByte == ADRESS_R){
+                    state = A_RCV;
+                }
+                else if(readByte == FLAG){
+                    state = Flag_RCV;
+                }
+                else{
+                    state = Start_RCV;
+                }
+
+                break;
+
+            case A_RCV:
+                
+                if(readByte == DISC_CONTROL){
+                    state = C_RCV;
+                }
+                else if(readByte == FLAG){
+                    state = Flag_RCV;
+                }
+                else{
+                    state = Start_RCV;
+                }
+
+                break;
+
+            case C_RCV:
+
+                if(readByte == (ADRESS_R^DISC_CONTROL)){
+                    state = BCC_OK;
+                }
+                else if(readByte == FLAG){
+                    state = Flag_RCV;
+                }
+
+                break;
+
+            case BCC_OK:
+
+                if(readByte == FLAG){
+                    state = STOP_RCV;
+                }
+                else{
+                    state = Start_RCV;
+                }
+
+                break;
+
+            case STOP_RCV:
+
+                break;
+
+            }
+        }
+
+    }
+
+    if(state == STOP_RCV){
+
+        sendSupervision(ADRESS_R,UA_CONTROL);
+        return close(fd);
+    }
+
+    return -1;
 }
