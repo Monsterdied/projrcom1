@@ -636,6 +636,8 @@ int llclose(int showStatistics)
     
     States_Open_t state = Start_RCV;
 
+    unsigned char readByte;
+
     while(state!=STOP_RCV && nRetransmissions != alarmcount){
 
         sendSupervision(ADRESS_R,DISC_CONTROL);
@@ -644,10 +646,8 @@ int llclose(int showStatistics)
 
         alarm(nTimeout);
 
-        unsigned char readByte;
-
         while(state!=STOP_RCV && !alarmEnabled){
-            
+
             read(fd,&readByte,1);
             switch (state)
             {
