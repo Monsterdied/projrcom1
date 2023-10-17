@@ -27,7 +27,7 @@ A_RCV,
 C_RCV,
 BCC_OK,
 STOP_RCV 
-}States_Open_t;
+}State_Read;
 
 typedef enum
 {

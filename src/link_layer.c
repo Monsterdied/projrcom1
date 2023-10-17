@@ -14,6 +14,8 @@
 #define _POSIX_SOURCE 1 // POSIX compliant source
 
 int alarmEnabled = FALSE;
+
+    struct termios oldtio;
 // Alarm function handler
 void alarmHandler(int signal)
 {
@@ -36,6 +38,16 @@ void update_infoframe()
         infoframe = 1;
     }
 }
+int close_connection(){
+    if (tcsetattr(fd, TCSANOW, &oldtio) == -1)
+    {
+        perror("tcsetattr");
+        return 1;
+    }
+    close(fd);
+    return 0;
+}
+
 ////////////////////////////////////////////////
 // LLOPEN
 ////////////////////////////////////////////////
@@ -54,7 +66,6 @@ int llopen(LinkLayer connectionParameters)
         exit(-1);
     }
 
-    struct termios oldtio;
     struct termios newtio;
 
     // Save current port settings
@@ -95,7 +106,7 @@ int llopen(LinkLayer connectionParameters)
     }
 
     printf("New termios structure set\n");
-    States_Open_t state = Start_RCV;
+    State_Read  state = Start_RCV;
     nRetransmissions = connectionParameters.nRetransmissions;
     nTimeout = connectionParameters.timeout;
     if (connectionParameters.role == LlTx)
@@ -134,7 +145,7 @@ int llopen(LinkLayer connectionParameters)
                 case Flag_RCV:
                     printf("flag\n");
 
-                    if (buf_read[0] == ADRESS_T)
+                    if (buf_read[0] == ADRESS_R)
                     {
                         state = A_RCV;
                     }
@@ -164,7 +175,7 @@ int llopen(LinkLayer connectionParameters)
                     break;
                 case C_RCV:
                     printf("control\n");
-                    if (buf_read[0] == (ADRESS_T ^ UA_CONTROL))
+                    if (buf_read[0] == (ADRESS_R ^ UA_CONTROL))
                     {
                         state = BCC_OK;
                     }
@@ -280,7 +291,7 @@ int llopen(LinkLayer connectionParameters)
         unsigned char buf[5];
         memset(&buf, 0, sizeof(5));
         buf[0] = FLAG;
-        buf[1] = ADRESS_T;
+        buf[1] = ADRESS_R;
         buf[2] = UA_CONTROL;
         buf[3] = ADRESS_T ^ UA_CONTROL;
         buf[4] = FLAG;
@@ -288,17 +299,13 @@ int llopen(LinkLayer connectionParameters)
         return 0;
     }
     printf("rip\n");
-    if (tcsetattr(fd, TCSANOW, &oldtio) == -1)
-    {
-        perror("tcsetattr");
-    }
-    close(fd);
+    close_connection();
     return -1;
 }
 
 unsigned char read_control_frame(unsigned char Adress)
 {
-    States_Open_t state = Start_RCV;
+    State_Read state = Start_RCV;
     unsigned char control = 0;
     while (alarmEnabled == TRUE && state != STOP_RCV)
     {
@@ -339,7 +346,7 @@ unsigned char read_control_frame(unsigned char Adress)
             }
             break;
         case C_RCV:
-            if (buf_read[0] == (ADRESS_T ^ control))
+            if (buf_read[0] == (Adress ^ control))
             {
                 state = BCC_OK;
             }
@@ -376,6 +383,7 @@ unsigned char read_control_frame(unsigned char Adress)
 ////////////////////////////////////////////////
 int llwrite(const unsigned char *buf, int bufSize)
 {
+        (void)signal(SIGALRM, alarmHandler);
     // We add 6 to the frameSize cause of F(x2) , A , C , BCC1 , BCC2 fields
     int frameSize = bufSize + 6;
 
@@ -445,7 +453,7 @@ int llwrite(const unsigned char *buf, int bufSize)
         {
             // unsigned char control = read_control_frame(ADRESS_T);
 
-            unsigned char control = read_control_frame(ADRESS_T);
+            unsigned char control = read_control_frame(ADRESS_R);
             if (control == REJ_0 || control == REJ_1)
             { // WORK IN PROGRESS
                 state = Failed;
@@ -556,9 +564,25 @@ int llread(unsigned char *packet)
         case DISC_RCV_r:
             if (readByte == FLAG)
             {
-                // state = STOP_RCV_r;
-                // sendSupervision(ADRESS_T,UA_CONTROL);
+                int received = 0 ;
+                int tries = 0;
+                while ( received == 0 && tries < nRetransmissions)
+                {                   
+                    sendSupervision(ADRESS_R,DISC_CONTROL);
+                    alarm(nTimeout);
+                    alarmEnabled = TRUE;
+                    unsigned char control = read_control_frame(ADRESS_T);
+                    if(control == UA_CONTROL){
+                        state = STOP_RCV_r;
+                    }
+                    else{
+                        tries++;
+                    }
+                }
+                
                 // close connection not yet implemented
+                close_connection();
+                return 0;
             }
             else
             {
@@ -621,8 +645,11 @@ int llread(unsigned char *packet)
             break;
         }
     }
+    close_connection();
     return -1;
 }
+
+
 
 ////////////////////////////////////////////////
 // LLCLOSE
@@ -633,96 +660,25 @@ int llclose(int showStatistics)
     (void)signal(SIGALRM, alarmHandler);
 
     int alarmcount = 0;
-    
-    States_Open_t state = Start_RCV;
 
-    while(state!=STOP_RCV && nRetransmissions != alarmcount){
+    while(nRetransmissions != alarmcount){
 
-        sendSupervision(ADRESS_R,DISC_CONTROL);
+        sendSupervision(ADRESS_T,DISC_CONTROL);
 
         alarmEnabled = FALSE;
 
         alarm(nTimeout);
 
-        unsigned char readByte;
-
-        while(state!=STOP_RCV && !alarmEnabled){
-            
-            read(fd,&readByte,1);
-            switch (state)
-            {
-            case Start_RCV:
-                
-                if(readByte==FLAG){
-                    state=Flag_RCV;
-                }
-
-                break;
-
-            case Flag_RCV:
-
-                if(readByte == ADRESS_R){
-                    state = A_RCV;
-                }
-                else if(readByte == FLAG){
-                    state = Flag_RCV;
-                }
-                else{
-                    state = Start_RCV;
-                }
-
-                break;
-
-            case A_RCV:
-                
-                if(readByte == DISC_CONTROL){
-                    state = C_RCV;
-                }
-                else if(readByte == FLAG){
-                    state = Flag_RCV;
-                }
-                else{
-                    state = Start_RCV;
-                }
-
-                break;
-
-            case C_RCV:
-
-                if(readByte == (ADRESS_R^DISC_CONTROL)){
-                    state = BCC_OK;
-                }
-                else if(readByte == FLAG){
-                    state = Flag_RCV;
-                }
-
-                break;
-
-            case BCC_OK:
-
-                if(readByte == FLAG){
-                    state = STOP_RCV;
-                }
-                else{
-                    state = Start_RCV;
-                }
-
-                break;
-
-            case STOP_RCV:
-
-                break;
-
-            }
+        unsigned char c = read_control_frame(ADRESS_R);
+        if(c == DISC_CONTROL){
+            sendSupervision(ADRESS_R,UA_CONTROL);
+            close_connection();
+            return 0;
         }
-
-    }
-
-    if(state == STOP_RCV){
-
-        sendSupervision(ADRESS_R,UA_CONTROL);
-        return close(fd);
-    }
-
+        else{
+            alarmcount++;
+        }
+    } 
+    close_connection();
     return -1;
 }
