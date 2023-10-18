@@ -72,26 +72,15 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
     llopen(link);
     switch (link.role)
     {
-<<<<<<< HEAD
-    case LlTx:  
-
-
-
-
-
-    
+    case LlTx:
+        //test ll
         /*unsigned char buffer[4] = {'a','b','c','\0'};
         llwrite(buffer, 3);
         int integer = 0;     
         llclose(integer); */
-        /*FILE *file = fopen(filename,"rb");
-=======
-    case LlTx:
-        
         //Open file
 
         FILE *file = fopen(filename,"rb");
->>>>>>> ROdrigo
         if(file==NULL){
             perror("File doesn't exist.");
             exit(-1);
@@ -104,9 +93,6 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
         long fileSize = ftell(file);
         fseek(file,0,SEEK_SET);
         printf("%ld\n",fileSize);
-<<<<<<< HEAD
-*/
-=======
 
         //Send Control Packet START
 
@@ -127,12 +113,10 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
         
 
 
->>>>>>> ROdrigo
         break;
     
     case LlRx:
 
-<<<<<<< HEAD
 
 
 
@@ -146,13 +130,6 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
                 printf("\n");
             }*/
             
-=======
-        //Receive Control Packet START
-
-        //Receive Data Packets
-
-        //Close
->>>>>>> ROdrigo
         break;
     }
 }
