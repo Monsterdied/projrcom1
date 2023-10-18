@@ -12,26 +12,34 @@
 
 unsigned char *buildControlPacket(const int C, long int filesize, const char *filename, int *size){
 
+    //Posição no array
     int pointer = 0;
 
+    //Nº de bytes para o tamanho
     int L1 = ceil((float)filesize/8);
 
     int L2 = strlen(filename);
 
+    //Tamanho header do control packet
     *size = (1) + (2+L1) + (2+L2);
 
+    //Atribuir tamanho do controlPacket
     unsigned char *controlPacket = malloc(*size * sizeof(unsigned char));
 
+    //Construção do Packet
     controlPacket[pointer++] = C;
     controlPacket[pointer++] = 0;
     controlPacket[pointer] = L1;
     
-    
+    //Prencher os bytes de tamanho
     for(char i=0;i<L1;){
-        controlPacket[pointer + L1 + i] = filesize;
+
+        //Prencher a partir do byte menos significativo ao mais significativo
+        controlPacket[pointer + L1 - i] = filesize;
         filesize>>=8;
     }
 
+    //Apontar para a parte final do packet e prencher o que falta
     pointer+=L1+1;
 
     controlPacket[pointer++]=1;
@@ -97,7 +105,9 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
 
         //Send Control Packet END
         
-            //...
+        //int controlSize;
+        //unsigned char *ControlPacketStart = buildControlPacket(3,fileSize,filename,&controlSize);
+        
 
 
         break;
