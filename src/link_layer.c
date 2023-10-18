@@ -47,7 +47,15 @@ int close_connection(){
     close(fd);
     return 0;
 }
+void setAlarm(){
+    alarm(nTimeout);
+    alarmEnabled = TRUE;
+}
 
+void unsetAlarm(){
+    alarm(0);
+    alarmEnabled = FALSE;
+}
 ////////////////////////////////////////////////
 // LLOPEN
 ////////////////////////////////////////////////
@@ -125,7 +133,7 @@ int llopen(LinkLayer connectionParameters)
             {
                 write(fd, buf, 5);
                 counter++;
-                alarm(connectionParameters.timeout);
+                setAlarm();
                 alarmEnabled = TRUE;
             }
             while (state != STOP_RCV && alarmEnabled == TRUE)
@@ -136,7 +144,6 @@ int llopen(LinkLayer connectionParameters)
                 switch (state) 
                 {
                 case Start_RCV:
-
                     if (buf_read[0] == FLAG)
                     {
                         state = Flag_RCV;
@@ -192,9 +199,8 @@ int llopen(LinkLayer connectionParameters)
                     printf("bcc\n");
                     if (buf_read[0] == FLAG)
                     {
-                        printf("fixe");
-                        alarm(0);
-                        alarmEnabled = FALSE;
+                        printf("fixe\n");
+                        unsetAlarm();
                         state = STOP_RCV;
                     }
                     else
@@ -267,6 +273,7 @@ int llopen(LinkLayer connectionParameters)
                 }
                 break;
             case BCC_OK:
+                printf("bcc receiver\n");
                 if (buf_read[0] == FLAG)
                 {
                     state = STOP_RCV;
@@ -293,7 +300,7 @@ int llopen(LinkLayer connectionParameters)
         buf[0] = FLAG;
         buf[1] = ADRESS_R;
         buf[2] = UA_CONTROL;
-        buf[3] = ADRESS_T ^ UA_CONTROL;
+        buf[3] = ADRESS_R^ UA_CONTROL;
         buf[4] = FLAG;
         write(fd, buf, 5);
         return 0;
@@ -306,9 +313,11 @@ int llopen(LinkLayer connectionParameters)
 unsigned char read_control_frame(unsigned char Adress)
 {
     State_Read state = Start_RCV;
-    unsigned char control = 0;
+    unsigned char control = 0x00;
+    printf("called_reading controll\n");
     while (alarmEnabled == TRUE && state != STOP_RCV)
     {
+        //printf("reading_controll\n");
         unsigned char buf_read[1];
         buf_read[0] = 0;
         read(fd, buf_read, 1);
@@ -321,6 +330,7 @@ unsigned char read_control_frame(unsigned char Adress)
             }
             break;
         case Flag_RCV:
+        //printf("flag_rcv\n");
             if (buf_read[0] == Adress)
             {
                 state = A_RCV;
@@ -335,6 +345,7 @@ unsigned char read_control_frame(unsigned char Adress)
             }
             break;
         case A_RCV:
+            printf("a_rcv\n");
             control = buf_read[0];
             if (buf_read[0] == FLAG)
             {
@@ -346,8 +357,10 @@ unsigned char read_control_frame(unsigned char Adress)
             }
             break;
         case C_RCV:
+            printf("c_rcv\n");
             if (buf_read[0] == (Adress ^ control))
             {
+
                 state = BCC_OK;
             }
             else if (buf_read[0] == FLAG)
@@ -360,10 +373,10 @@ unsigned char read_control_frame(unsigned char Adress)
             }
             break;
         case BCC_OK:
+                        printf("bcc_ok\n");
             if (buf_read[0] == FLAG)
-            {
-                alarm(0);
-                alarmEnabled = FALSE;
+            {   
+                unsetAlarm();
                 state = STOP_RCV;
             }
             else
@@ -393,7 +406,7 @@ int llwrite(const unsigned char *buf, int bufSize)
     unsigned char *frame = malloc(frameSize * sizeof(unsigned char));
 
     frame[0] = FLAG;
-    frame[1] = ADRESS_R;
+    frame[1] = ADRESS_T;
     frame[2] = S(infoframe);
     frame[3] = frame[1] ^ frame[2];
     memcpy(frame + 4, buf, bufSize);
@@ -446,8 +459,7 @@ int llwrite(const unsigned char *buf, int bufSize)
             state = Sent;
             tries++;
             write(fd, frame, frameSize);
-            alarm(nTimeout);
-            alarmEnabled = TRUE;
+            setAlarm();
         }
         else
         {
@@ -457,20 +469,17 @@ int llwrite(const unsigned char *buf, int bufSize)
             if (control == REJ_0 || control == REJ_1)
             { // WORK IN PROGRESS
                 state = Failed;
-                alarm(0);
-                alarmEnabled = FALSE;
+                unsetAlarm();
             }
             else if (control == RR_0 || control == RR_1)
             {
                 state = Received_Ack;
-                alarm(0);
-                alarmEnabled = FALSE;
+                unsetAlarm();
             }
             else
             {
                 state = Failed;
-                alarm(0);
-                alarmEnabled = FALSE;
+                unsetAlarm();
             }
         }
     }
@@ -495,13 +504,13 @@ int sendSupervision(unsigned char A, unsigned char C)
     frame[2] = C;
     frame[3] = A ^ C;
     frame[4] = FLAG;
-    printf("Going to send SupFrame");
+    //printf("Going to send SupFrame\n");
     return write(fd, frame, 5);
 }
 
 int llread(unsigned char *packet)
 {
-
+    printf("llread\n");
     State_read_r state = Start_RCV_r;
     unsigned char readByte;
     unsigned char cByte;
@@ -514,12 +523,14 @@ int llread(unsigned char *packet)
         switch (state)
         {
         case Start_RCV_r:
+        //printf("start_rcv\n");
             if (readByte == FLAG)
             {
                 state = Flag_RCV_r;
             }
             break;
         case Flag_RCV:
+        //printf("flag_rcv\n");
             if (readByte == ADRESS_T)
             {
                 state = A_RCV_r;
@@ -530,6 +541,7 @@ int llread(unsigned char *packet)
             }
             break;
         case A_RCV:
+        printf("a_rcv\n");
             if (readByte == S(0) || readByte == S(1) || readByte == DISC_CONTROL)
             {
                 state = C_RCV_r;
@@ -543,6 +555,7 @@ int llread(unsigned char *packet)
                 state = Start_RCV_r;
             break;
         case C_RCV:
+        printf("c_rcv\n");
             if (readByte == (ADRESS_T ^ cByte))
             {
                 if (cByte == DISC_CONTROL)
@@ -562,24 +575,27 @@ int llread(unsigned char *packet)
                 state = Flag_RCV_r;
             break; 
         case DISC_RCV_r:
+            //printf("disc_rcv_state\n");
             if (readByte == FLAG)
-            {
+            {   
+                //printf("disc_rcv\n");
                 int received = 0 ;
                 int tries = 0;
                 while ( received == 0 && tries < nRetransmissions)
-                {                   
+                {   
+                    printf("receving disk\n");     
                     sendSupervision(ADRESS_R,DISC_CONTROL);
-                    alarm(nTimeout);
-                    alarmEnabled = TRUE;
+                    setAlarm();
                     unsigned char control = read_control_frame(ADRESS_T);
                     if(control == UA_CONTROL){
                         state = STOP_RCV_r;
+                        received = 1;
                     }
                     else{
                         tries++;
                     }
                 }
-                
+                printf("close_connection\n");
                 // close connection not yet implemented
                 close_connection();
                 return 0;
@@ -590,6 +606,7 @@ int llread(unsigned char *packet)
             }
             break;
         case READ_DATA_r:
+            printf("read_data\n");
             if (readByte == ESC_1)
             {
                 state = ESC_CLEAN_r;
@@ -620,6 +637,7 @@ int llread(unsigned char *packet)
             }
             break;
         case ESC_CLEAN_r:
+            printf("clean\n");
             state = READ_DATA_r;
             if (readByte == ESC_2)
             {
@@ -632,7 +650,7 @@ int llread(unsigned char *packet)
                 size++;
             }
             else if(readByte == FLAG){
-                state = Flag_RCV_r;
+                state = Start_RCV_r;
                 sendSupervision(ADRESS_R,infoframe==0?REJ_0:REJ_1);
             }
             else{
@@ -661,17 +679,17 @@ int llclose(int showStatistics)
 
     int alarmcount = 0;
 
-    while(nRetransmissions != alarmcount){
-
+    while(nRetransmissions > alarmcount){
+        printf("transmiter sent disc\n");
         sendSupervision(ADRESS_T,DISC_CONTROL);
 
-        alarmEnabled = FALSE;
 
-        alarm(nTimeout);
-
+                setAlarm();
+        
         unsigned char c = read_control_frame(ADRESS_R);
         if(c == DISC_CONTROL){
-            sendSupervision(ADRESS_R,UA_CONTROL);
+            printf("transmiter receiceived disc\n");
+            sendSupervision(ADRESS_T,UA_CONTROL);
             close_connection();
             return 0;
         }
@@ -679,6 +697,7 @@ int llclose(int showStatistics)
             alarmcount++;
         }
     } 
+    printf("transmiter didn't receive disc\n");
     close_connection();
     return -1;
 }

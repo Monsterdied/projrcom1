@@ -27,12 +27,20 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
     printf("linkLayer\n");
 
     llopen(link);
-
     switch (link.role)
     {
-    case LlTx:
-        
-        FILE *file = fopen(filename,"rb");
+    case LlTx:  
+
+
+
+
+
+    
+        /*unsigned char buffer[4] = {'a','b','c','\0'};
+        llwrite(buffer, 3);
+        int integer = 0;     
+        llclose(integer); */
+        /*FILE *file = fopen(filename,"rb");
         if(file==NULL){
             perror("File doesn't exist.");
             exit(-1);
@@ -42,11 +50,24 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
         long fileSize = ftell(file);
         fseek(file,0,SEEK_SET);
         printf("%ld\n",fileSize);
-
+*/
         break;
     
     case LlRx:
 
+
+
+
+            /*unsigned char ok[100];
+            int j = 0;
+            while((j = llread(ok)) >0){
+                printf("j = %d\n",j);
+                for(int i = 0; i < j;i++){
+                    printf("%c",ok[i]);
+                }
+                printf("\n");
+            }*/
+            
         break;
     }
 }
