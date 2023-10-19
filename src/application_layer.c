@@ -135,7 +135,8 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
 
         //Send Data Packets
 
-        //unsigned char *data = getFileContent(file,fileSize);
+        unsigned char *data = getFileContent(file,fileSize);
+        //...
 
 
         //Send Control Packet END
@@ -192,8 +193,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
             else{
                 unsigned char *data = malloc(size);
                 readDataPacket(dataPacket,size,data);
-                //4
-                fwrite(data,1,size,targetfile);
+                fwrite(data,1,size+4,targetfile);
                 free(data);
             }
         }
