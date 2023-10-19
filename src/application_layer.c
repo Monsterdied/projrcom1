@@ -57,6 +57,11 @@ unsigned char *getFileContent(FILE *file, long int filesize){
 }
 
 
+void readControlPacket(unsigned char *startPacket,char *filename, long int *filesize,int *size){
+    return;
+}
+
+
 void applicationLayer(const char *serialPort, const char *role, int baudRate,
                       int nTries, int timeout, const char *filename)
 {
@@ -135,9 +140,10 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
         //Receive Start Packet
 
         unsigned char *startPacket = malloc(MAX_PAYLOAD_SIZE);
-        int size;
+        int size = 0;
         while(TRUE){
-            if(size=llread(startPacket)>-1){
+            size = llread(startPacket);
+            if(size){
                 break;
             }
         }
@@ -145,8 +151,8 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
         //Read Start Packet
 
         long int filesize;
-        char *filename;
-        readControlPacket(packet,&filename,&filesize,size);
+        char *filename = NULL;
+        readControlPacket(startPacket,filename,&filesize,&size);
         
         //Receive Data Packets
 
