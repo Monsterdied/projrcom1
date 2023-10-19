@@ -24,7 +24,7 @@ unsigned char *buildControlPacket(const int C, long int filesize, const char *fi
     *size = (1) + (2+L1) + (2+L2);
 
     //Atribuir tamanho do controlPacket
-    unsigned char *controlPacket = malloc(*size * sizeof(unsigned char));
+    unsigned char *controlPacket = malloc(*size);
 
     //Construção do Packet
     controlPacket[pointer++] = C;
@@ -48,6 +48,14 @@ unsigned char *buildControlPacket(const int C, long int filesize, const char *fi
     return controlPacket;
 
 }
+
+
+unsigned char *getFileContent(FILE *file, long int filesize){
+    unsigned char* fileContent = malloc(filesize);
+    fread(fileContent,1,filesize,file);
+    return fileContent;
+}
+
 
 void applicationLayer(const char *serialPort, const char *role, int baudRate,
                       int nTries, int timeout, const char *filename)
@@ -80,6 +88,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
         int integer = 0;     
         llclose(integer); */
 
+
         //Open file
 
         FILE *file = fopen(filename,"rb");
@@ -100,20 +109,23 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
 
         int controlStartSize;
         unsigned char *ControlPacketStart = buildControlPacket(2,fileSize,filename,&controlStartSize);
-        llwrite(ControlPacketStart,controlSize);
+        llwrite(ControlPacketStart,controlStartSize);
 
 
         //Send Data Packets
 
-            //...
+        //unsigned char *data = getFileContent(file,fileSize);
 
 
         //Send Control Packet END
         
         int controlEndSize;
-        unsigned char *ControlPacketStart = buildControlPacket(3,fileSize,filename,&controlEndSize);
-        
+        unsigned char *ControlPacketEnd = buildControlPacket(3,fileSize,filename,&controlEndSize);
+        llwrite(ControlPacketEnd,controlEndSize);
 
+        //Close the connection
+
+        llclose(0);
 
         break;
     
@@ -122,11 +134,23 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
 
         //Receive Start Packet
 
-        
+        unsigned char *startPacket = malloc(MAX_PAYLOAD_SIZE);
+        int size;
+        while(TRUE){
+            if(size=llread(startPacket)>-1){
+                break;
+            }
+        }
+
+        //Read Start Packet
+
+        long int filesize;
+        char *filename;
+        readControlPacket(packet,&filename,&filesize,size);
         
         //Receive Data Packets
 
-
+        
 
         //Receive End Packet
 
