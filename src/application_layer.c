@@ -73,11 +73,13 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
     switch (link.role)
     {
     case LlTx:
+
         //test ll
         /*unsigned char buffer[4] = {'a','b','c','\0'};
         llwrite(buffer, 3);
         int integer = 0;     
         llclose(integer); */
+
         //Open file
 
         FILE *file = fopen(filename,"rb");
@@ -96,8 +98,8 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
 
         //Send Control Packet START
 
-        int controlSize;
-        unsigned char *ControlPacketStart = buildControlPacket(2,fileSize,filename,&controlSize);
+        int controlStartSize;
+        unsigned char *ControlPacketStart = buildControlPacket(2,fileSize,filename,&controlStartSize);
         llwrite(ControlPacketStart,controlSize);
 
 
@@ -108,8 +110,8 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
 
         //Send Control Packet END
         
-        //int controlSize;
-        //unsigned char *ControlPacketStart = buildControlPacket(3,fileSize,filename,&controlSize);
+        int controlEndSize;
+        unsigned char *ControlPacketStart = buildControlPacket(3,fileSize,filename,&controlEndSize);
         
 
 
@@ -118,7 +120,15 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
     case LlRx:
 
 
+        //Receive Start Packet
 
+        
+        
+        //Receive Data Packets
+
+
+
+        //Receive End Packet
 
             /*unsigned char ok[100];
             int j = 0;
