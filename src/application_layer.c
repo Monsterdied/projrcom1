@@ -58,9 +58,25 @@ unsigned char *getFileContent(FILE *file, long int filesize){
 
 
 void readControlPacket(unsigned char *startPacket,char *filename, long int *filesize,int *size){
+
+    //Get File Size first
+    int Nbytes = startPacket[2];
+    unsigned char sizePackets[Nbytes];
+    memcpy(sizePackets,startPacket+3,Nbytes);
+
+    for(int i=0; i<Nbytes;i++) *filesize = (startPacket[Nbytes-i-1] <<(8*i));
+
+    //Get File Name
+    int Nbytes2 = startPacket[3+Nbytes+1];
+    filename = (char *)malloc(Nbytes2);
+    memcpy(filename,startPacket+3+Nbytes+2,Nbytes2);
     return;
 }
 
+
+void readDataPacket(unsigned char *dataPacket, int size, unsigned char *data){
+    return;
+}
 
 void applicationLayer(const char *serialPort, const char *role, int baudRate,
                       int nTries, int timeout, const char *filename)
@@ -154,22 +170,34 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
         char *filename = NULL;
         readControlPacket(startPacket,filename,&filesize,&size);
         
-        //Receive Data Packets
+        //Create a new file to write content
 
-        
+        FILE *targetfile = fopen(filename,"wb+");
 
-        //Receive End Packet
+        unsigned char *dataPacket = malloc(MAX_PAYLOAD_SIZE);
 
-            /*unsigned char ok[100];
-            int j = 0;
-            while((j = llread(ok)) >0){
-                printf("j = %d\n",j);
-                for(int i = 0; i < j;i++){
-                    printf("%c",ok[i]);
+        //Write into the new file until receive a packet that has packet[0] = 3
+        size = 0;
+        while(TRUE){
+            while(TRUE){
+                size = llread(dataPacket);
+                if(size==0){
+                    break;
                 }
-                printf("\n");
-            }*/
-            
+            }
+            if(dataPacket[0] == 3){
+                fclose(targetfile);
+                break;
+            } 
+            else{
+                unsigned char *data = malloc(size);
+                readDataPacket(dataPacket,size,data);
+                //4
+                fwrite(data,1,size,targetfile);
+                free(data);
+            }
+        }
+
         break;
     }
 }
