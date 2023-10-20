@@ -93,7 +93,7 @@ void readDataPacket(unsigned char *dataPacket, unsigned short *data_size,unsigne
 void buildDataPacket(unsigned char *dataPacket, unsigned short dataPacket_size, unsigned char *data){
     dataPacket[0] = 1;
     memcpy(dataPacket+1,&dataPacket_size,2);
-    memcpy(dataPacket+4,&data,dataPacket_size-4);
+    memcpy(dataPacket+4,data,dataPacket_size);
     return;
 }
 
@@ -164,13 +164,20 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
             //Send Data Packets
             int currentPacket = 0;
             printf("Filesize %li \n",filesize);
-            while((currentPacket * (MAX_PAYLOAD_SIZE - 3)) < filesize){
+            while((currentPacket * (MAX_PAYLOAD_SIZE - 4)) < filesize){
                 printf("Packet %d\n",currentPacket);
                 unsigned char dataPacket[MAX_PAYLOAD_SIZE + 1];
                 unsigned char data[MAX_PAYLOAD_SIZE-3];
                 unsigned short size = fread(data,1,MAX_PAYLOAD_SIZE-4,file);
+                /*for(int i=0;i<size;i++){
+                    printf("%c",data[i]);
+                }*/
+                printf("\nole\n");
                 buildDataPacket(dataPacket,size,data);
-                printf("size %d\n",size);
+                /*for(int i=0;i<size + 4;i++){
+                    printf("%c",dataPacket[i]);
+                }*/
+                printf("print frame import %d\n",size);
                 if(llwrite(dataPacket,size+4) == -1){
                     printf("Error\n");
                     break;

@@ -398,15 +398,19 @@ unsigned char read_control_frame(unsigned char Adress)
 // LLWRITE
 ////////////////////////////////////////////////
 int llwrite(const unsigned char *buf, int bufSize)
-{
+{   
         (void)signal(SIGALRM, alarmHandler);
     // We add 6 to the frameSize cause of F(x2) , A , C , BCC1 , BCC2 fields
     int frameSize = bufSize + 6;
-
+    printf("\n\n\n\nbufsize %d\n",bufSize);
+    for(int i=0;i<bufSize;i++){
+        printf("%c",buf[i]);
+    }
+    printf("\n");
     (void)signal(SIGALRM, alarmHandler);
 
     // We declare the frame and start filling it
-    unsigned char *frame = malloc(frameSize * sizeof(unsigned char));
+    unsigned char frame[2000];
 
     frame[0] = FLAG;
     frame[1] = ADRESS_T;
@@ -425,14 +429,12 @@ int llwrite(const unsigned char *buf, int bufSize)
         if (buf[i] == FLAG)
         {
             counter_escapes++;
-            frame = realloc(frame, ++frameSize);
             frame[counter_escapes] = ESC_1;
             frame[counter_escapes++] = ESC_2;
         }
         else if (buf[i] == ESC_1)
         {
             counter_escapes++;
-            frame = realloc(frame, ++frameSize);
             frame[counter_escapes] = ESC_1;
             frame[counter_escapes++] = ESC_3;
         }
@@ -492,7 +494,7 @@ int llwrite(const unsigned char *buf, int bufSize)
         update_infoframe();
         return frameSize;
     }
-    free(frame);
+
     return -1;
 }
 
