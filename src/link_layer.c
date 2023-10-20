@@ -150,7 +150,7 @@ int llopen(LinkLayer connectionParameters)
                     }
                     break;
                 case Flag_RCV:
-                    printf("flag\n");
+                    //printf("flag\n");
 
                     if (buf_read[0] == ADRESS_R)
                     {
@@ -166,7 +166,7 @@ int llopen(LinkLayer connectionParameters)
                     }
                     break;
                 case A_RCV:
-                    printf("adress\n");
+                    //printf("adress\n");
                     if (buf_read[0] == UA_CONTROL)
                     {
                         state = C_RCV;
@@ -181,7 +181,7 @@ int llopen(LinkLayer connectionParameters)
                     }
                     break;
                 case C_RCV:
-                    printf("control\n");
+                    //printf("control\n");
                     if (buf_read[0] == (ADRESS_R ^ UA_CONTROL))
                     {
                         state = BCC_OK;
@@ -196,10 +196,10 @@ int llopen(LinkLayer connectionParameters)
                     }
                     break;
                 case BCC_OK:
-                    printf("bcc\n");
+                    //printf("bcc\n");
                     if (buf_read[0] == FLAG)
                     {
-                        printf("fixe\n");
+                        //printf("fixe\n");
                         unsetAlarm();
                         state = STOP_RCV;
                     }
@@ -216,7 +216,7 @@ int llopen(LinkLayer connectionParameters)
     }
     else
     {
-        printf("read\n");
+        //printf("read\n");
         while (state != STOP_RCV)
         {
             unsigned char buf_read[1];
@@ -273,7 +273,7 @@ int llopen(LinkLayer connectionParameters)
                 }
                 break;
             case BCC_OK:
-                printf("bcc receiver\n");
+                //printf("bcc receiver\n");
                 if (buf_read[0] == FLAG)
                 {
                     state = STOP_RCV;
@@ -294,7 +294,7 @@ int llopen(LinkLayer connectionParameters)
     }
     if (state == STOP_RCV)
     {
-        printf("ok\n");
+        //printf("ok\n");
         unsigned char buf[5];
         memset(&buf, 0, sizeof(5));
         buf[0] = FLAG;
@@ -314,7 +314,7 @@ unsigned char read_control_frame(unsigned char Adress)
 {
     State_Read state = Start_RCV;
     unsigned char control = 0x00;
-    printf("called_reading controll\n");
+    //printf("called_reading controll\n");
     while (alarmEnabled == TRUE && state != STOP_RCV)
     {
         //printf("reading_controll\n");
@@ -345,7 +345,7 @@ unsigned char read_control_frame(unsigned char Adress)
             }
             break;
         case A_RCV:
-            printf("a_rcv\n");
+            //printf("a_rcv\n");
             control = buf_read[0];
             if (buf_read[0] == FLAG)
             {
@@ -357,7 +357,7 @@ unsigned char read_control_frame(unsigned char Adress)
             }
             break;
         case C_RCV:
-            printf("c_rcv\n");
+            //printf("c_rcv\n");
             if (buf_read[0] == (Adress ^ control))
             {
 
@@ -373,7 +373,7 @@ unsigned char read_control_frame(unsigned char Adress)
             }
             break;
         case BCC_OK:
-                        printf("bcc_ok\n");
+                        //printf("bcc_ok\n");
             if (buf_read[0] == FLAG)
             {   
                 unsetAlarm();
@@ -489,6 +489,7 @@ int llwrite(const unsigned char *buf, int bufSize)
         update_infoframe();
         return frameSize;
     }
+    free(frame);
     return -1;
 }
 
@@ -510,7 +511,7 @@ int sendSupervision(unsigned char A, unsigned char C)
 
 int llread(unsigned char *packet)
 {
-    printf("llread\n");
+    //printf("llread\n");
     State_read_r state = Start_RCV_r;
     unsigned char readByte;
     unsigned char cByte;
@@ -541,7 +542,7 @@ int llread(unsigned char *packet)
             }
             break;
         case A_RCV:
-        printf("a_rcv\n");
+        //printf("a_rcv\n");
             if (readByte == S(0) || readByte == S(1) || readByte == DISC_CONTROL)
             {
                 state = C_RCV_r;
@@ -555,7 +556,7 @@ int llread(unsigned char *packet)
                 state = Start_RCV_r;
             break;
         case C_RCV:
-        printf("c_rcv\n");
+        //printf("c_rcv\n");
             if (readByte == (ADRESS_T ^ cByte))
             {
                 if (cByte == DISC_CONTROL)
@@ -606,7 +607,7 @@ int llread(unsigned char *packet)
             }
             break;
         case READ_DATA_r:
-            printf("read_data\n");
+            //printf("read_data\n");
             if (readByte == ESC_1)
             {
                 state = ESC_CLEAN_r;
@@ -637,7 +638,7 @@ int llread(unsigned char *packet)
             }
             break;
         case ESC_CLEAN_r:
-            printf("clean\n");
+            //printf("clean\n");
             state = READ_DATA_r;
             if (readByte == ESC_2)
             {
