@@ -39,12 +39,15 @@ void update_infoframe()
     }
 }
 int close_connection(){
+    printf("close_connection1\n");
     if (tcsetattr(fd, TCSANOW, &oldtio) == -1)
     {
         perror("tcsetattr");
         return 1;
     }
+    printf("close_connection2\n");
     close(fd);
+    printf("close_connection3\n");
     return 0;
 }
 void setAlarm(){
@@ -675,7 +678,7 @@ int llread(unsigned char *packet)
 ////////////////////////////////////////////////
 int llclose(int showStatistics)
 {
-
+    unsetAlarm();
     (void)signal(SIGALRM, alarmHandler);
 
     int alarmcount = 0;

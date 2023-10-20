@@ -127,133 +127,129 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
     link.timeout = timeout;
 
     printf("linkLayer\n");
+    if(llopen(link)!= -1){
+        switch (link.role)
+        {
+        case LlTx:
+    /*
+            //test ll
+            unsigned char buffer[4] = {'a','b','c','\0'};
+            llwrite(buffer, 3);
+            int integer = 0;     
+            llclose(integer); */
 
-    llopen(link);
-    switch (link.role)
-    {
-    case LlTx:
-/*
-        //test ll
-        unsigned char buffer[4] = {'a','b','c','\0'};
-        llwrite(buffer, 3);
-        int integer = 0;     
-        llclose(integer); */
+            //Open file
+            FILE *file = fopen(filename,"rb");
+            if(file==NULL){
+                perror("File doesn't exist.");
+                exit(-1);
+            }
+            printf("File opened\n");
+            //Get file size
+            ControllPaket packetStart;
+            packetStart.filename = malloc(strlen(filename));
+            strcpy(packetStart.filename,filename);
+            packetStart.C = 2;
+            fseek(file, 0, SEEK_END);
+            long filesize = ftell(file);
+            fseek(file,0,SEEK_SET);
+            packetStart.filesize = (long int)filesize;
+            printf("%li\n",packetStart.filesize);
 
-        //Open file
-        FILE *file = fopen(filename,"rb");
-        if(file==NULL){
-            perror("File doesn't exist.");
-            exit(-1);
-        }
-        printf("File opened\n");
-        //Get file size
-        ControllPaket packetStart;
-        packetStart.filename = malloc(strlen(filename));
-        strcpy(packetStart.filename,filename);
-        packetStart.C = 2;
-        fseek(file, 0, SEEK_END);
-        long filesize = ftell(file);
-        fseek(file,0,SEEK_SET);
-        packetStart.filesize = (long int)filesize;
-        printf("%li\n",packetStart.filesize);
+            //Send Control Packet START
 
-        //Send Control Packet START
+            unsigned char *ControlPacketStart = buildControlPacket(&packetStart);
+            llwrite(ControlPacketStart,packetStart.size);
 
-        unsigned char *ControlPacketStart = buildControlPacket(&packetStart);
-        llwrite(ControlPacketStart,packetStart.size);
+            //Send Data Packets
+            int currentPacket = 0;
+            printf("Filesize %li \n",filesize);
+            while((currentPacket * (MAX_PAYLOAD_SIZE - 3)) < filesize){
+                printf("Packet %d\n",currentPacket);
+                unsigned char dataPacket[MAX_PAYLOAD_SIZE + 1];
+                unsigned char data[MAX_PAYLOAD_SIZE-3];
+                unsigned short size = fread(data,1,MAX_PAYLOAD_SIZE-4,file);
+                buildDataPacket(dataPacket,size,data);
+                printf("size %d\n",size);
+                if(llwrite(dataPacket,size+4) == -1){
+                    printf("Error\n");
+                    break;
+                }
+                currentPacket ++ ;
+            }
 
-        //Send Data Packets
-        int currentPacket = 0;
-        printf("Filesize %li \n",filesize);
-        while(currentPacket < filesize){
-            printf("Packet %d\n",currentPacket);
-            unsigned char dataPacket[MAX_PAYLOAD_SIZE + 1];
-            unsigned char data[MAX_PAYLOAD_SIZE-3];
-            unsigned short size = fread(data,1,MAX_PAYLOAD_SIZE-4,file);
-            buildDataPacket(dataPacket,size,data);
-            if(llwrite(dataPacket,size+4) == -1){
+            //unsigned char *data = getFileContent(file,fileSize);
+            //...
+            ControllPaket packetEnd;
+            packetEnd.filename= malloc(strlen(filename));
+            strcpy(packetEnd.filename,filename);
+            packetEnd.C = 3;
+            packetEnd.filesize = filesize;
+            //Send Control Packet END
+
+            unsigned char *ControlPacketEnd = buildControlPacket(&packetEnd);
+            llwrite(ControlPacketEnd,packetEnd.size);
+            //Close the connection
+
+            llclose(0);
+            free(packetStart.filename);
+            free(packetEnd.filename);
+            free(ControlPacketStart);
+            free(ControlPacketEnd);
+            break;
+        
+        case LlRx:
+
+
+            //Receive Start Packet
+
+            unsigned char startPacket[MAX_PAYLOAD_SIZE + 1];
+            int size = llread(startPacket);
+            if(size == -1){
                 printf("Error\n");
                 break;
             }
-            currentPacket += MAX_PAYLOAD_SIZE;
-        }
-
-        //unsigned char *data = getFileContent(file,fileSize);
-        //...
-        ControllPaket packetEnd;
-        packetEnd.filename= malloc(strlen(filename));
-        strcpy(packetEnd.filename,filename);
-        packetEnd.C = 3;
-        packetEnd.filesize = filesize;
-        //Send Control Packet END
-
-        unsigned char *ControlPacketEnd = buildControlPacket(&packetEnd);
-        llwrite(ControlPacketEnd,packetEnd.size);
-        //Close the connection
-
-        llclose(0);
-        free(packetStart.filename);
-        free(packetEnd.filename);
-        free(ControlPacketStart);
-        free(ControlPacketEnd);
-        break;
-    
-    case LlRx:
 
 
-        //Receive Start Packet
+            //Read Start Packet
 
-        unsigned char startPacket[MAX_PAYLOAD_SIZE];
-        int size = llread(startPacket);
-        if(size == -1){
-            printf("Error\n");
+
+            ControllPaket packet = readControlPacket(startPacket);
+            printf("received start packet :%s\n",packet.filename);
+            //Create a new file to write content
+            char path[268];
+            strcpy(path, "receive_");
+            strcat(path,packet.filename);
+            printf("%s\n",path);
+            FILE *targetfile = fopen(path,"wb");
+            printf("File created\n");
+            unsigned char dataPacket[MAX_PAYLOAD_SIZE + 1];
+
+            //Write into the new file until receive a packet that has packet[0] = 3
+            unsigned short size_of_data = 0;
+            while(TRUE){
+                printf("Packet\n");
+                size = llread(dataPacket);
+                if(dataPacket[0] == 3){
+                    llread(dataPacket);
+                    printf("CLOSE \n");
+                    printf("File closed\n");
+                    break;
+                } 
+                else{
+                    printf("Packet1\n");
+                    unsigned char data[997];
+                    readDataPacket(dataPacket,&size_of_data,data);
+                    printf("size of data %d\n",size_of_data);
+                    //printf("size %ld\n",strlen((char *)data));
+                    fwrite(data,1,size_of_data,targetfile);
+                    printf("Packet3\n");
+                }
+            }
+            printf("free stuff\n");
+            free(packet.filename);
+            fclose(targetfile);
             break;
         }
-
-
-        //Read Start Packet
-
-
-        ControllPaket packet = readControlPacket(startPacket);
-        printf("received start packet :%s\n",packet.filename);
-        //Create a new file to write content
-        char* path = (char*)malloc(strlen(packet.filename)+11);
-        strcpy(path, "/received/");
-        strcat(path,packet.filename);
-        printf("%s\n",path);
-        FILE *targetfile = fopen(path,"wb");
-        printf("File created\n");
-        unsigned char dataPacket[MAX_PAYLOAD_SIZE];
-
-        //Write into the new file until receive a packet that has packet[0] = 3
-        unsigned short size_of_data = 0;
-        while(TRUE){
-            printf("Packet\n");
-            size = llread(dataPacket);
-
-            if(dataPacket[0] == 3){
-                llread(dataPacket);
-                fclose(targetfile);
-                break;
-            } 
-            else{
-                printf("Packet1\n");
-                unsigned char data[998];
-                readDataPacket(dataPacket,&size_of_data,data);
-                for(int i = 0 ; i < size_of_data ;i++){
-                    printf("%x ",data[i]);
-                }
-                printf("Packet2\n");
-                printf("size of data %d\n",size_of_data);
-                data[997] = '\0';
-                //printf("size %ld\n",strlen((char *)data));
-                //fwrite(data,1,2,targetfile);
-                printf("Packet3\n");
-            }
-        }
-        printf("free stuff\n");
-        free(packet.filename);
-        free(path);
-        break;
     }
 }
