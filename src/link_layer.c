@@ -134,6 +134,7 @@ int llopen(LinkLayer connectionParameters)
         {
             if (alarmEnabled == FALSE)
             {
+
                 write(fd, buf, 5);
                 counter++;
                 setAlarm();
@@ -401,16 +402,14 @@ int llwrite(const unsigned char *buf, int bufSize)
 {   
         (void)signal(SIGALRM, alarmHandler);
     // We add 6 to the frameSize cause of F(x2) , A , C , BCC1 , BCC2 fields
-    int frameSize = bufSize + 6;
     printf("\n\n\n\nbufsize %d\n",bufSize);
     for(int i=0;i<bufSize;i++){
         printf("%c",buf[i]);
     }
     printf("\n");
-    (void)signal(SIGALRM, alarmHandler);
 
     // We declare the frame and start filling it
-    unsigned char frame[2000];
+    unsigned char frame[2040];
 
     frame[0] = FLAG;
     frame[1] = ADRESS_T;
@@ -418,7 +417,7 @@ int llwrite(const unsigned char *buf, int bufSize)
     frame[3] = frame[1] ^ frame[2];
     memcpy(frame + 4, buf, bufSize);
     unsigned char BCC2 = buf[0];
-
+    printf("BCC2 %c\n",BCC2);
     for (int i = 1; i < bufSize; i++)
         BCC2 ^= buf[i];
 
@@ -427,23 +426,23 @@ int llwrite(const unsigned char *buf, int bufSize)
     for (int i = 0; i < bufSize; i++)
     {
         if (buf[i] == FLAG)
-        {
-            counter_escapes++;
-            frame[counter_escapes] = ESC_1;
+        {   
+            printf("flag\n");
+            frame[counter_escapes++] = ESC_1;
             frame[counter_escapes++] = ESC_2;
         }
         else if (buf[i] == ESC_1)
         {
-            counter_escapes++;
-            frame[counter_escapes] = ESC_1;
+            frame[counter_escapes++] = ESC_1;
             frame[counter_escapes++] = ESC_3;
         }
-        else
+        else if(buf[i] != ESC_1 && buf[i] != FLAG)
         {
             frame[counter_escapes++] = buf[i];
         }
+        printf("counter_is %d\n",i);
     }
-
+    printf("counter_escapes %d\n",counter_escapes);
     // Finish filling the rest of frame
 
     frame[counter_escapes++] = BCC2;
@@ -463,7 +462,13 @@ int llwrite(const unsigned char *buf, int bufSize)
         {
             state = Sent;
             tries++;
-            write(fd, frame, frameSize);
+            printf("write tries %d\n",tries);
+
+            for(int i=0;i<counter_escapes;i++){
+                printf("%x ",frame[i]);
+            }
+            printf("\n");
+            write(fd, frame, counter_escapes);
             setAlarm();
         }
         else
@@ -492,7 +497,7 @@ int llwrite(const unsigned char *buf, int bufSize)
     if (state == Received_Ack)
     {
         update_infoframe();
-        return frameSize;
+        return counter_escapes;
     }
 
     return -1;
@@ -525,7 +530,15 @@ int llread(unsigned char *packet)
     unsigned char testBCC2;
     while (state != STOP_RCV_r)
     {
+        if(size > 2040){
+            sendSupervision(ADRESS_R,infoframe==0?REJ_0:REJ_1);
+            size = 0;
+            state = Start_RCV_r;
+        }
         read(fd, &readByte, 1);
+        /*if(state != Start_RCV_r){
+            printf("%x ",readByte);
+        }*/
         switch (state)
         {
         case Start_RCV_r:
@@ -535,7 +548,7 @@ int llread(unsigned char *packet)
                 state = Flag_RCV_r;
             }
             break;
-        case Flag_RCV:
+        case Flag_RCV_r:
         //printf("flag_rcv\n");
             if (readByte == ADRESS_T)
             {
@@ -546,7 +559,7 @@ int llread(unsigned char *packet)
                 state = Start_RCV_r;
             }
             break;
-        case A_RCV:
+        case A_RCV_r:
         //printf("a_rcv\n");
             if (readByte == S(0) || readByte == S(1) || readByte == DISC_CONTROL)
             {
@@ -560,7 +573,7 @@ int llread(unsigned char *packet)
             else
                 state = Start_RCV_r;
             break;
-        case C_RCV:
+        case C_RCV_r:
         //printf("c_rcv\n");
             if (readByte == (ADRESS_T ^ cByte))
             {
@@ -570,6 +583,7 @@ int llread(unsigned char *packet)
                 }
                 else
                 {
+                    size = 0;
                     state = READ_DATA_r;
                 }
             }
@@ -581,10 +595,10 @@ int llread(unsigned char *packet)
                 state = Flag_RCV_r;
             break; 
         case DISC_RCV_r:
-            //printf("disc_rcv_state\n");
+            printf("disc_rcv_state\n");
             if (readByte == FLAG)
             {   
-                //printf("disc_rcv\n");
+                printf("disc_rcv\n");
                 int received = 0 ;
                 int tries = 0;
                 while ( received == 0 && tries < nRetransmissions)
@@ -627,6 +641,7 @@ int llread(unsigned char *packet)
                     testBCC2 ^= packet[i];
 
                 if(testBCC2 == bcc2){
+                    //printf("bcc2 ok\n");
                     sendSupervision(ADRESS_R,infoframe==0?RR_1:RR_0);
                     state = STOP_RCV_r;
                     update_infoframe();
@@ -634,16 +649,18 @@ int llread(unsigned char *packet)
                 }
                 else{
                     sendSupervision(ADRESS_R,infoframe==0?REJ_0:REJ_1);
+                    size = 0;
+                    state = Start_RCV_r;
                 }
             }
             else
-            {
+            {   printf("frame %x %d\n",readByte,size);
                 packet[size] = readByte;
                 size++;
             }
             break;
         case ESC_CLEAN_r:
-            //printf("clean\n");
+            printf("clean\n");
             state = READ_DATA_r;
             if (readByte == ESC_2)
             {
