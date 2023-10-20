@@ -61,7 +61,6 @@ ControllPaket readControlPacket(unsigned char *startPacket){
     switch(startPacket[0]){
         case 2:
             int Nbytes = startPacket[2];
-            packet.filesize = (long int)malloc(Nbytes);
             memcpy(&packet.filesize,startPacket + 3,Nbytes);
     //for(int i=0; i<Nbytes;i++) *filesize = (startPacket[Nbytes-i-1] <<(8*i));
 
@@ -83,17 +82,15 @@ ControllPaket readControlPacket(unsigned char *startPacket){
 }
 
 
-void readDataPacket(unsigned char *dataPacket, unsigned short int *dataPacket_size,unsigned char *data){
-    for(int i = 0 ; i < 1000 ;i++){
-        printf("%x ",dataPacket[i]);
-    }
-    printf("\n");
-    memcpy(&dataPacket_size,dataPacket+1,2);
-    memcpy(data,dataPacket+4,*dataPacket_size-4);
+void readDataPacket(unsigned char *dataPacket, unsigned short *data_size,unsigned char *data){
+    printf("done\n");
+    memcpy(data_size,dataPacket+1,2);
+    printf("size %d\n",*data_size);
+    memcpy(data,dataPacket+4,*data_size);
     return;
 }
 
-void buildDataPacket(unsigned char *dataPacket, unsigned short int dataPacket_size, unsigned char *data){
+void buildDataPacket(unsigned char *dataPacket, unsigned short dataPacket_size, unsigned char *data){
     dataPacket[0] = 1;
     memcpy(dataPacket+1,&dataPacket_size,2);
     memcpy(dataPacket+4,&data,dataPacket_size-4);
@@ -170,16 +167,14 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
         printf("Filesize %li \n",filesize);
         while(currentPacket < filesize){
             printf("Packet %d\n",currentPacket);
-            unsigned char *dataPacket = malloc(MAX_PAYLOAD_SIZE);
-            unsigned char *data = malloc(MAX_PAYLOAD_SIZE-4);
-            int size = fread(data,1,MAX_PAYLOAD_SIZE-4,file);
-            buildDataPacket(dataPacket,size+4,data);
+            unsigned char dataPacket[MAX_PAYLOAD_SIZE + 1];
+            unsigned char data[MAX_PAYLOAD_SIZE-3];
+            unsigned short size = fread(data,1,MAX_PAYLOAD_SIZE-4,file);
+            buildDataPacket(dataPacket,size,data);
             if(llwrite(dataPacket,size+4) == -1){
                 printf("Error\n");
                 break;
             }
-            free(dataPacket);
-            free(data);
             currentPacket += MAX_PAYLOAD_SIZE;
         }
 
@@ -208,7 +203,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
 
         //Receive Start Packet
 
-        unsigned char *startPacket = malloc(MAX_PAYLOAD_SIZE);
+        unsigned char startPacket[MAX_PAYLOAD_SIZE];
         int size = llread(startPacket);
         if(size == -1){
             printf("Error\n");
@@ -225,12 +220,13 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
         char* path = (char*)malloc(strlen(packet.filename)+11);
         strcpy(path, "/received/");
         strcat(path,packet.filename);
-        FILE *targetfile = fopen(path,"wb+");
+        printf("%s\n",path);
+        FILE *targetfile = fopen(path,"wb");
         printf("File created\n");
-        unsigned char *dataPacket = malloc(MAX_PAYLOAD_SIZE);
+        unsigned char dataPacket[MAX_PAYLOAD_SIZE];
 
         //Write into the new file until receive a packet that has packet[0] = 3
-        unsigned short int size_of_data = 0;
+        unsigned short size_of_data = 0;
         while(TRUE){
             printf("Packet\n");
             size = llread(dataPacket);
@@ -241,16 +237,23 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
                 break;
             } 
             else{
-                unsigned char *data = (unsigned char *)malloc(size_of_data);
                 printf("Packet1\n");
+                unsigned char data[998];
                 readDataPacket(dataPacket,&size_of_data,data);
+                for(int i = 0 ; i < size_of_data ;i++){
+                    printf("%x ",data[i]);
+                }
                 printf("Packet2\n");
-                fwrite(data,1,size_of_data+4,targetfile);
-                free(data);
+                printf("size of data %d\n",size_of_data);
+                data[997] = '\0';
+                //printf("size %ld\n",strlen((char *)data));
+                //fwrite(data,1,2,targetfile);
+                printf("Packet3\n");
             }
         }
+        printf("free stuff\n");
+        free(packet.filename);
         free(path);
-        free(dataPacket);
         break;
     }
 }
