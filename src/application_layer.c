@@ -9,7 +9,6 @@
 #include <math.h>
 #include <string.h>
 
-
 unsigned char *buildControlPacket(ControllPaket*packet){
 
     //Posição no array
@@ -174,12 +173,11 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
                 //for(int i=0;i<size;i++){
                 //    printf("%c",data[i]);
                 //}
-                printf("\nole\n");
                 buildDataPacket(dataPacket,size,data,&packetSize);
-                for(int i=0;i<packetSize;i++){
+                /*for(int i=0;i<packetSize;i++){
                     printf("%c",dataPacket[i]);
                 }
-                printf("print frame import %d\n",size);
+                printf("print frame import %d\n",size);*/
                 if(llwrite(dataPacket,packetSize) == -1){
                     printf("Error\n");
                     break;
@@ -239,9 +237,9 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
             while(TRUE){
                 printf("Reading\n");
                 size = llread(dataPacket);
-                for(int i=0;i<size;i++){
+                /*for(int i=0;i<size;i++){
                     printf("%c",dataPacket[i]);
-                }
+                }*/
                 if(dataPacket[0] == 3){
                     llread(dataPacket);
                     printf("CLOSE \n");

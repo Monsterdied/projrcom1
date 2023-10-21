@@ -14,7 +14,7 @@
 #define _POSIX_SOURCE 1 // POSIX compliant source
 
 int alarmEnabled = FALSE;
-
+int states_packets_lost = 0;
     struct termios oldtio;
 // Alarm function handler
 void alarmHandler(int signal)
@@ -134,7 +134,7 @@ int llopen(LinkLayer connectionParameters)
         {
             if (alarmEnabled == FALSE)
             {
-
+                states_packets_lost++;
                 write(fd, buf, 5);
                 counter++;
                 setAlarm();
@@ -204,6 +204,7 @@ int llopen(LinkLayer connectionParameters)
                     if (buf_read[0] == FLAG)
                     {
                         //printf("fixe\n");
+                        states_packets_lost--;
                         unsetAlarm();
                         state = STOP_RCV;
                     }
@@ -402,11 +403,11 @@ int llwrite(const unsigned char *buf, int bufSize)
 {   
         (void)signal(SIGALRM, alarmHandler);
     // We add 6 to the frameSize cause of F(x2) , A , C , BCC1 , BCC2 fields
-    printf("\n\n\n\nbufsize %d\n",bufSize);
+    /*printf("\n\n\n\nbufsize %d\n",bufSize);
     for(int i=0;i<bufSize;i++){
         printf("%c",buf[i]);
     }
-    printf("\n");
+    printf("\n");*/
 
     // We declare the frame and start filling it
     unsigned char frame[2040];
@@ -415,9 +416,9 @@ int llwrite(const unsigned char *buf, int bufSize)
     frame[1] = ADRESS_T;
     frame[2] = S(infoframe);
     frame[3] = frame[1] ^ frame[2];
-    memcpy(frame + 4, buf, bufSize);
+    //memcpy(frame + 4, buf, bufSize); why memcpy isnt doing anything
     unsigned char BCC2 = buf[0];
-    printf("BCC2 %c\n",BCC2);
+    //printf("BCC2 %c\n",BCC2);
     for (int i = 1; i < bufSize; i++)
         BCC2 ^= buf[i];
 
@@ -427,7 +428,7 @@ int llwrite(const unsigned char *buf, int bufSize)
     {
         if (buf[i] == FLAG)
         {   
-            printf("flag\n");
+            //printf("flag\n");
             frame[counter_escapes++] = ESC_1;
             frame[counter_escapes++] = ESC_2;
         }
@@ -440,12 +441,25 @@ int llwrite(const unsigned char *buf, int bufSize)
         {
             frame[counter_escapes++] = buf[i];
         }
-        printf("counter_is %d\n",i);
+        //printf("counter_is %d\n",i);
     }
-    printf("counter_escapes %d\n",counter_escapes);
+    //printf("counter_escapes %d\n",counter_escapes);
     // Finish filling the rest of frame
-
-    frame[counter_escapes++] = BCC2;
+        if (BCC2 == FLAG)
+        {   
+            //printf("flag\n");
+            frame[counter_escapes++] = ESC_1;
+            frame[counter_escapes++] = ESC_2;
+        }
+        else if (BCC2 == ESC_1)
+        {
+            frame[counter_escapes++] = ESC_1;
+            frame[counter_escapes++] = ESC_3;
+        }
+        else if(BCC2 != ESC_1 && BCC2 != FLAG)
+        {
+            frame[counter_escapes++] = BCC2 ;
+        }
     frame[counter_escapes++] = FLAG;
 
     // 2nd Part of the function
@@ -462,12 +476,13 @@ int llwrite(const unsigned char *buf, int bufSize)
         {
             state = Sent;
             tries++;
+            states_packets_lost++;
             printf("write tries %d\n",tries);
-
+/*
             for(int i=0;i<counter_escapes;i++){
                 printf("%x ",frame[i]);
             }
-            printf("\n");
+            printf("\n");*/
             write(fd, frame, counter_escapes);
             setAlarm();
         }
@@ -483,6 +498,7 @@ int llwrite(const unsigned char *buf, int bufSize)
             }
             else if (control == RR_0 || control == RR_1)
             {
+                states_packets_lost--;
                 state = Received_Ack;
                 unsetAlarm();
             }
@@ -654,13 +670,13 @@ int llread(unsigned char *packet)
                 }
             }
             else
-            {   printf("frame %x %d\n",readByte,size);
+            {   
                 packet[size] = readByte;
                 size++;
             }
             break;
         case ESC_CLEAN_r:
-            printf("clean\n");
+            //printf("clean\n");
             state = READ_DATA_r;
             if (readByte == ESC_2)
             {
@@ -705,13 +721,14 @@ int llclose(int showStatistics)
     while(nRetransmissions > alarmcount){
         printf("transmiter sent disc\n");
         sendSupervision(ADRESS_T,DISC_CONTROL);
+        states_packets_lost++;
 
-
-                setAlarm();
-        
+        setAlarm();
         unsigned char c = read_control_frame(ADRESS_R);
         if(c == DISC_CONTROL){
+            states_packets_lost--;
             printf("transmiter receiceived disc\n");
+            printf("retransmission erros errors %d\n",states_packets_lost);
             sendSupervision(ADRESS_T,UA_CONTROL);
             close_connection();
             return 0;
@@ -721,6 +738,7 @@ int llclose(int showStatistics)
         }
     } 
     printf("transmiter didn't receive disc\n");
+    printf("retransmission erros errors %d\n",states_packets_lost);
     close_connection();
     return -1;
 }

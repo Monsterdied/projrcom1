@@ -67,7 +67,7 @@ STOP_RCV_r
 #define ESC_1 0x7D
 #define ESC_2 0x5E
 #define ESC_3 0x5D
-
+#define BCC_ESC 0x20
 // MISC
 #define FALSE 0
 #define TRUE 1
