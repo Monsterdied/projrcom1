@@ -473,11 +473,13 @@ int llwrite(const unsigned char *buf, int bufSize)
 
         // Enable alarm
         if (alarmEnabled == FALSE)
-        {
+        {   
             state = Sent;
             tries++;
+            if(tries > 1)
+                        printf("write tries %d\n",tries);
             states_packets_lost++;
-            printf("write tries %d\n",tries);
+            //printf("write tries %d\n",tries);
 /*
             for(int i=0;i<counter_escapes;i++){
                 printf("%x ",frame[i]);

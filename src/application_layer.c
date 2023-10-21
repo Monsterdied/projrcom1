@@ -82,9 +82,9 @@ ControllPaket readControlPacket(unsigned char *startPacket){
 
 
 void readDataPacket(unsigned char *dataPacket, unsigned short *data_size,unsigned char *data){
-    printf("done\n");
+    //printf("done\n");
     memcpy(data_size,dataPacket+1,2);
-    printf("size %d\n",*data_size);
+    //printf("size %d\n",*data_size);
     memcpy(data,dataPacket+4,*data_size);
     return;
 }
@@ -166,6 +166,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
             printf("Filesize %li \n",filesize);
             int packetSize = 0;
             while((currentPacket * (MAX_PAYLOAD_SIZE - 4)) < filesize){
+                if(currentPacket%1000 == 0)
                 printf("Packet %d\n",currentPacket);
                 unsigned char dataPacket[MAX_PAYLOAD_SIZE + 1];
                 unsigned char data[MAX_PAYLOAD_SIZE-3];
@@ -235,12 +236,17 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
             //Write into the new file until receive a packet that has packet[0] = 3
             unsigned short size_of_data = 0;
             while(TRUE){
-                printf("Reading\n");
+                //printf("Reading\n");
                 size = llread(dataPacket);
                 /*for(int i=0;i<size;i++){
                     printf("%c",dataPacket[i]);
                 }*/
-                if(dataPacket[0] == 3){
+                //if read receives the disconnect command
+                if(size == 0){
+                    printf("disconnect\n");
+                    break;
+                }
+                if(dataPacket[0] == 3 ){
                     llread(dataPacket);
                     printf("CLOSE \n");
                     printf("File closed\n");
