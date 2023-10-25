@@ -144,7 +144,8 @@ int llopen(LinkLayer connectionParameters)
             {
                 unsigned char buf_read[1];
                 buf_read[0] = 0;
-                read(fd, buf_read, 1);
+                while(read(fd, buf_read, 1) == 0 && alarmEnabled == TRUE);
+                
                 switch (state) 
                 {
                 case Start_RCV:
@@ -226,7 +227,7 @@ int llopen(LinkLayer connectionParameters)
         {
             unsigned char buf_read[1];
             buf_read[0] = 0;
-            read(fd, buf_read, 1);
+            while (read(fd, buf_read, 1) == 0 && state != STOP_RCV);
             switch (state)
             {
             case Start_RCV:
@@ -325,7 +326,7 @@ unsigned char read_control_frame(unsigned char Adress)
         //printf("reading_controll\n");
         unsigned char buf_read[1];
         buf_read[0] = 0;
-        read(fd, buf_read, 1);
+        while(read(fd, buf_read, 1) == 0 && alarmEnabled == TRUE);
         switch (state)
         {
         case Start_RCV:
@@ -553,7 +554,7 @@ int llread(unsigned char *packet)
             size = 0;
             state = Start_RCV_r;
         }
-        read(fd, &readByte, 1);
+        while(read(fd, &readByte, 1)==0 && state != STOP_RCV_r);
         /*if(state != Start_RCV_r){
             printf("%x ",readByte);
         }*/
