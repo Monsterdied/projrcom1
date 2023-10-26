@@ -30,13 +30,6 @@ unsigned char *buildControlPacket(ControllPaket*packet){
     controlPacket[pointer] = L1;
     memcpy(controlPacket+pointer+1,&packet->filesize,L1);
     //Prencher os bytes de tamanho
-    /*
-    for(char i=0;i<L1;){
-        //Prencher a partir do byte menos significativo ao mais significativo
-        controlPacket[pointer + L1 - i] = filesize;
-        filesize>>=8;
-    }
-*/
     //Apontar para a parte final do packet e prencher o que falta
     pointer+=L1+1;
 
@@ -61,11 +54,9 @@ ControllPaket readControlPacket(unsigned char *startPacket){
         case 2:
             int Nbytes = startPacket[2];
             memcpy(&packet.filesize,startPacket + 3,Nbytes);
-    //for(int i=0; i<Nbytes;i++) *filesize = (startPacket[Nbytes-i-1] <<(8*i));
 
     //Get File Name
             int Nbytes2 = startPacket[3+Nbytes+1];
-    //printf("nbytes2%d\n",Nbytes2);
             packet.filename = (char *)malloc(Nbytes2);
             memcpy(packet.filename,startPacket+3+Nbytes+2,Nbytes2);
             break;
@@ -82,9 +73,7 @@ ControllPaket readControlPacket(unsigned char *startPacket){
 
 
 void readDataPacket(unsigned char *dataPacket, unsigned short *data_size,unsigned char *data){
-    //printf("done\n");
     memcpy(data_size,dataPacket+1,2);
-    //printf("size %d\n",*data_size);
     memcpy(data,dataPacket+4,*data_size);
     return;
 }
@@ -101,17 +90,6 @@ void buildDataPacket(unsigned char *dataPacket, unsigned short dataPacket_size, 
 void applicationLayer(const char *serialPort, const char *role, int baudRate,
                       int nTries, int timeout, const char *filename)
 {
-    /*
-    int size = 0;
-    ControllPaket packet={2,40000000,"ola.txt",0};
-    unsigned char* result = buildControlPacket(&packet);
-    for(int i=0;i<size;i++){
-        printf("%x\n",result[i]);
-    }
-    ControllPaket packet1 = readControlPacket(result);
-    printf("testing\n");
-    printf("%s\n",packet1.filename);
-    printf("%ld\n",packet1.filesize);*/
     
     LinkLayer link;
 
@@ -131,12 +109,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
         switch (link.role)
         {
         case LlTx:
-    /*
-            //test ll
-            unsigned char buffer[4] = {'a','b','c','\0'};
-            llwrite(buffer, 3);
-            int integer = 0;     
-            llclose(integer); */
+
 
             //Open file
             FILE *file = fopen(filename,"rb");
@@ -171,14 +144,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
                 unsigned char dataPacket[MAX_PAYLOAD_SIZE + 1];
                 unsigned char data[MAX_PAYLOAD_SIZE-3];
                 unsigned short size = fread(data,1,MAX_PAYLOAD_SIZE-3,file);
-                //for(int i=0;i<size;i++){
-                //    printf("%c",data[i]);
-                //}
                 buildDataPacket(dataPacket,size,data,&packetSize);
-                /*for(int i=0;i<packetSize;i++){
-                    printf("%c",dataPacket[i]);
-                }
-                printf("print frame import %d\n",size);*/
                 if(llwrite(dataPacket,packetSize) == -1){
                     printf("Error\n");
                     break;
@@ -231,16 +197,13 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
             printf("%s\n",path);
             FILE *targetfile = fopen(path,"wb");
             printf("File created\n");
-            unsigned char dataPacket[MAX_PAYLOAD_SIZE + 1000];
+            unsigned char dataPacket[MAX_PAYLOAD_SIZE];
 
             //Write into the new file until receive a packet that has packet[0] = 3
             unsigned short size_of_data = 0;
             while(TRUE){
                 //printf("Reading\n");
                 size = llread(dataPacket);
-                /*for(int i=0;i<size;i++){
-                    printf("%c",dataPacket[i]);
-                }*/
                 //if read receives the disconnect command
                 if(size == 0){
                     printf("disconnect\n");
