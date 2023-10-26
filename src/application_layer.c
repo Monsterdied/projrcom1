@@ -50,9 +50,9 @@ unsigned char *getFileContent(FILE *file, long int filesize){
 
 ControllPaket readControlPacket(unsigned char *startPacket){
     ControllPaket packet;
+    int Nbytes = startPacket[2];
     switch(startPacket[0]){
         case 2:
-            int Nbytes = startPacket[2];
             memcpy(&packet.filesize,startPacket + 3,Nbytes);
 
     //Get File Name
@@ -112,6 +112,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
 
 
             //Open file
+            printf("Opening file\n");
             FILE *file = fopen(filename,"rb");
             if(file==NULL){
                 perror("File doesn't exist.");
@@ -176,7 +177,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
 
 
             //Receive Start Packet
-
+            printf("building start packet\n");
             unsigned char startPacket[MAX_PAYLOAD_SIZE +1];
             int size = llread(startPacket);
             if(size == -1){
