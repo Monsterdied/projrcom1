@@ -165,12 +165,12 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
             int currentPacket = 0;
             printf("Filesize %li \n",filesize);
             int packetSize = 0;
-            while((currentPacket * (MAX_PAYLOAD_SIZE - 4)) < filesize){
+            while((currentPacket * (MAX_PAYLOAD_SIZE - 3)) < filesize){
                 if(currentPacket%1000 == 0)
                 printf("Packet %d\n",currentPacket);
                 unsigned char dataPacket[MAX_PAYLOAD_SIZE + 1];
                 unsigned char data[MAX_PAYLOAD_SIZE-3];
-                unsigned short size = fread(data,1,MAX_PAYLOAD_SIZE-4,file);
+                unsigned short size = fread(data,1,MAX_PAYLOAD_SIZE-3,file);
                 //for(int i=0;i<size;i++){
                 //    printf("%c",data[i]);
                 //}
