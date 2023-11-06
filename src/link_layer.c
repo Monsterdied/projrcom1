@@ -563,10 +563,12 @@ int llread(unsigned char *packet)
                 {
                     state = DISC_RCV_r;
                 }
-                else
-                {
+                else if (cByte == S(infoframe)){
                     size = 0;
                     state = READ_DATA_r;
+                }else{
+                    sendSupervision(ADRESS_R,infoframe==0?RR_0:RR_1);
+                    state = Start_RCV_r;
                 }
             }
             else if (readByte == FLAG)
