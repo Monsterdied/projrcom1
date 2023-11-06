@@ -10,9 +10,10 @@
 #include <termios.h>
 #include <unistd.h>
 #include <signal.h>
+#include <time.h>
 // MISC
 #define _POSIX_SOURCE 1 // POSIX compliant source
-
+int ErrorRate= 20;
 int alarmEnabled = FALSE;
 int states_packets_lost = 0;
     struct termios oldtio;
@@ -22,7 +23,7 @@ void alarmHandler(int signal)
     alarmEnabled = FALSE;
 }
 int nRetransmissions = 1;
-int nTimeout = 3;
+int nTimeout = 4;
 int fd = 0;
 int infoframe = 0;
 
@@ -55,6 +56,9 @@ void setAlarm(){
 void unsetAlarm(){
     alarm(0);
     alarmEnabled = FALSE;
+}
+void fazer_hoho(){
+    sleep(2);
 }
 ////////////////////////////////////////////////
 // LLOPEN
@@ -132,6 +136,12 @@ int llopen(LinkLayer connectionParameters)
             if (alarmEnabled == FALSE)
             {
                 states_packets_lost++;
+                fazer_hoho();
+                    srand(time(0));// delete this
+            if(rand()%100 < ErrorRate){
+                buf[3]=0x99;
+                printf("Sending error\n");
+            }
                 write(fd, buf, 5);
                 counter++;
                 setAlarm();
@@ -297,7 +307,13 @@ int llopen(LinkLayer connectionParameters)
         buf[2] = UA_CONTROL;
         buf[3] = ADRESS_R^ UA_CONTROL;
         buf[4] = FLAG;
+        fazer_hoho();
+            if(rand()%100 < ErrorRate){
+                buf[3]=0x99;
+                printf("Sending error\n");
+            }
         write(fd, buf, 5);
+        
         return 0;
     }
     printf("openning connection failed\n");
@@ -456,8 +472,15 @@ int llwrite(const unsigned char *buf, int bufSize)
             state = Sent;
             tries++;
             if(tries > 1)
-                        printf("write tries %d\n",tries);
+                printf("write tries %d\n",tries);
             states_packets_lost++;
+            fazer_hoho();
+            if(rand()%100 < ErrorRate){
+                frame[51]=0x99;
+                frame[50]=0x99;
+                frame[53]=0x99;
+                printf("Sending error\n");
+            }
             write(fd, frame, counter_escapes);
             setAlarm();
         }
@@ -506,6 +529,11 @@ int sendSupervision(unsigned char A, unsigned char C)
     frame[2] = C;
     frame[3] = A ^ C;
     frame[4] = FLAG;
+    fazer_hoho();
+    if(rand()%100 < ErrorRate){
+        frame[3]=0x99;
+        printf("Sending error\n");
+    }
     return write(fd, frame, 5);
 }
 

@@ -140,7 +140,6 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
             printf("Filesize %li \n",filesize);
             int packetSize = 0;
             while((currentPacket * (MAX_PAYLOAD_SIZE - 3)) < filesize){
-                if(currentPacket%1000 == 0)
                 printf("Packet %d\n",currentPacket);
                 unsigned char dataPacket[MAX_PAYLOAD_SIZE + 1];
                 unsigned char data[MAX_PAYLOAD_SIZE-3];
