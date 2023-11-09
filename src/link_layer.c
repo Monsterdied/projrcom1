@@ -58,7 +58,7 @@ void unsetAlarm(){
     alarmEnabled = FALSE;
 }
 void fazer_hoho(){
-    sleep(2);
+    printf(" \n");
 }
 ////////////////////////////////////////////////
 // LLOPEN
@@ -122,7 +122,7 @@ int llopen(LinkLayer connectionParameters)
     nRetransmissions = connectionParameters.nRetransmissions;
     nTimeout = connectionParameters.timeout;
     if (connectionParameters.role == LlTx)
-    {
+    {   srand(time(0) + 20);
         unsigned char buf[5];
         memset(&buf, 0, sizeof(5));
         buf[0] = FLAG;
@@ -136,13 +136,18 @@ int llopen(LinkLayer connectionParameters)
             if (alarmEnabled == FALSE)
             {
                 states_packets_lost++;
+
                 fazer_hoho();
-                    srand(time(0));// delete this
+
+                buf[3] = ADRESS_T ^ SET_CONTROL;
             if(rand()%100 < ErrorRate){
                 buf[3]=0x99;
                 printf("Sending error\n");
+            }else{
+                printf("Sending Not Error \n\n");
             }
                 write(fd, buf, 5);
+                printf("write tries %d\n",counter);
                 counter++;
                 setAlarm();
                 alarmEnabled = TRUE;
@@ -223,7 +228,8 @@ int llopen(LinkLayer connectionParameters)
         }
     }
     else
-    {
+    {   
+        srand(time(0) + 30);
         while (state != STOP_RCV)
         {
             unsigned char buf_read[1];
@@ -307,11 +313,7 @@ int llopen(LinkLayer connectionParameters)
         buf[2] = UA_CONTROL;
         buf[3] = ADRESS_R^ UA_CONTROL;
         buf[4] = FLAG;
-        fazer_hoho();
-            if(rand()%100 < ErrorRate){
-                buf[3]=0x99;
-                printf("Sending error\n");
-            }
+
         write(fd, buf, 5);
         
         return 0;
@@ -462,10 +464,11 @@ int llwrite(const unsigned char *buf, int bufSize)
     State_write_t state = Not_Sent;
 
     int tries = 0;
-
+                unsigned char O50 = frame[50];
+                unsigned char O51 = frame[51];
+                unsigned char O53 = frame[53];
     while (tries < nRetransmissions && state != Received_Ack)
     {
-
         // Enable alarm
         if (alarmEnabled == FALSE)
         {   
@@ -480,6 +483,13 @@ int llwrite(const unsigned char *buf, int bufSize)
                 frame[50]=0x99;
                 frame[53]=0x99;
                 printf("Sending error\n");
+            }else{
+                
+                printf("Sending Not Error \n\n");
+            
+                frame[51]=O51;
+                frame[50]=O50;
+                frame[53]=O53;
             }
             write(fd, frame, counter_escapes);
             setAlarm();
@@ -531,8 +541,10 @@ int sendSupervision(unsigned char A, unsigned char C)
     frame[4] = FLAG;
     fazer_hoho();
     if(rand()%100 < ErrorRate){
-        frame[3]=0x99;
+        frame[3]=0x11;
         printf("Sending error\n");
+    }else{
+        printf("Sending Not Error Supervisition \n\n");
     }
     return write(fd, frame, 5);
 }
